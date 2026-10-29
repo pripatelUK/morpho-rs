@@ -17,20 +17,18 @@ fn v1_page_fixture(vaults: &[(&str, &str, &str)], count_total: i64) -> String {
         .map(|(addr, name, symbol)| {
             format!(
                 r#"{{
-                    "id": "vault-{symbol}",
                     "address": "{addr}",
                     "name": "{name}",
                     "symbol": "{symbol}",
                     "chain": {{ "id": 1, "network": "ETHEREUM" }},
                     "listed": true,
                     "featured": false,
-                    "whitelisted": true,
                     "asset": {{
                         "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                         "symbol": "USDC",
                         "name": "USD Coin",
                         "decimals": 6,
-                        "priceUsd": 1.0
+                        "price": {{ "usd": 1.0 }}
                     }},
                     "state": {{
                         "curator": "0x1234567890123456789012345678901234567890",
@@ -43,7 +41,7 @@ fn v1_page_fixture(vaults: &[(&str, &str, &str)], count_total: i64) -> String {
                         "timelock": "86400",
                         "apy": 0.05,
                         "netApy": 0.045,
-                        "sharePrice": "1000000",
+                        "sharePriceNumber": 1.0,
                         "allocation": []
                     }},
                     "allocators": [],
@@ -67,34 +65,40 @@ fn v2_page_fixture(vaults: &[(&str, &str, &str)], count_total: i64) -> String {
         .map(|(addr, name, symbol)| {
             format!(
                 r#"{{
-                    "id": "vault-{symbol}",
                     "address": "{addr}",
                     "name": "{name}",
                     "symbol": "{symbol}",
                     "chain": {{ "id": 1, "network": "ETHEREUM" }},
                     "listed": true,
-                    "whitelisted": true,
+                    "type": "MorphoVault",
+                    "creationTimestamp": "1700000000",
                     "asset": {{
                         "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                         "symbol": "USDC",
                         "name": "USD Coin",
                         "decimals": 6,
-                        "priceUsd": 1.0
+                        "price": {{ "usd": 1.0 }}
                     }},
                     "curator": {{ "address": "0x1234567890123456789012345678901234567890" }},
                     "owner": {{ "address": "0x2345678901234567890123456789012345678901" }},
                     "totalAssets": "1000000000000",
                     "totalAssetsUsd": 1000000.0,
                     "totalSupply": "1000000000000",
+                    "idleAssets": "0",
+                    "idleAssetsUsd": 0.0,
                     "sharePrice": 1.0,
                     "performanceFee": 0.1,
                     "managementFee": 0.02,
-                    "avgApy": 0.06,
+                    "maxApy": 0.5,
                     "avgNetApy": 0.052,
                     "apy": 0.065,
                     "netApy": 0.057,
+                    "netApyExcludingRewards": 0.057,
                     "liquidity": "500000000000",
                     "liquidityUsd": 500000.0,
+                    "forceDeallocatableLiquidity": "0",
+                    "liquidityAdapter": null,
+                    "gatesConfig": null,
                     "adapters": {{ "items": [] }},
                     "rewards": [],
                     "warnings": []

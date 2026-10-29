@@ -43,5 +43,5 @@ pub use vault::{Vault, VaultVersion};
 pub use vault_v1::{MarketStateV1, VaultAllocation, VaultAllocator, VaultStateV1, VaultV1, VaultWarning};
 pub use vault_v2::{
     MarketStateV2, MetaMorphoAllocation, MorphoMarketPosition, VaultAdapter, VaultAdapterData,
-    VaultReward, VaultV2, VaultV2Warning,
+    VaultReward, VaultV2, VaultV2Gates, VaultV2Warning,
 };

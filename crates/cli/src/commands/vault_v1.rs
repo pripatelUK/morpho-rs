@@ -53,7 +53,7 @@ pub async fn run_v1_list(args: &ListArgs, format: OutputFormat, api_url: Option<
 
     // If we used curator filter but also want whitelisted, filter client-side
     if args.curator.is_some() && args.whitelisted {
-        vaults.retain(|v| v.whitelisted || v.listed);
+        vaults.retain(|v| v.listed);
     }
 
     // Limit results

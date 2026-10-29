@@ -1,8 +1,6 @@
 {
   "errors": [
-    {
-      "message": "Vault not found"
-    }
+    { "message": "Vault not found" }
   ],
   "data": null
 }

@@ -38,7 +38,6 @@ pub fn format_v1_vault_detail(vault: &VaultV1) -> String {
     output.push_str(&format!("  Symbol:      {}\n", vault.symbol));
     output.push_str(&format!("  Chain:       {}\n", vault.chain));
     output.push_str(&format!("  Listed:      {}\n", if vault.listed { "Yes" } else { "No" }));
-    output.push_str(&format!("  Whitelisted: {}\n", if vault.whitelisted { "Yes" } else { "No" }));
     output.push_str(&format!("  Featured:    {}\n\n", if vault.featured { "Yes" } else { "No" }));
 
     // Asset Info
@@ -122,7 +121,10 @@ pub fn format_v2_vault_detail(vault: &VaultV2) -> String {
     output.push_str(&format!("  Symbol:      {}\n", vault.symbol));
     output.push_str(&format!("  Chain:       {}\n", vault.chain));
     output.push_str(&format!("  Listed:      {}\n", if vault.listed { "Yes" } else { "No" }));
-    output.push_str(&format!("  Whitelisted: {}\n\n", if vault.whitelisted { "Yes" } else { "No" }));
+    if let Some(vault_type) = &vault.vault_type {
+        output.push_str(&format!("  Type:        {}\n", vault_type));
+    }
+    output.push_str(&format!("  Gated:       {}\n\n", if vault.gates.is_gated() { "Yes" } else { "No" }));
 
     // Asset Info
     output.push_str(&format!("{}\n", "Asset".cyan().bold()));
@@ -153,15 +155,33 @@ pub fn format_v2_vault_detail(vault: &VaultV2) -> String {
     if let Some(net_apy) = vault.net_apy {
         output.push_str(&format!("  Net APY:         {}\n", format_apy(net_apy)));
     }
-    if let Some(avg_apy) = vault.avg_apy {
-        output.push_str(&format!("  Avg APY:         {}\n", format_apy(avg_apy)));
-    }
     if let Some(avg_net_apy) = vault.avg_net_apy {
         output.push_str(&format!("  Avg Net APY:     {}\n", format_apy(avg_net_apy)));
     }
+    if let Some(max_apy) = vault.max_apy {
+        output.push_str(&format!("  Max APY:         {}\n", format_apy(max_apy)));
+    }
 
     output.push_str(&format!("  Total Assets:    {}\n", format_usd(vault.total_assets_usd)));
+    output.push_str(&format!("  Idle Assets:     {}\n", format_usd(vault.idle_assets_usd)));
     output.push_str(&format!("  Liquidity:       {}\n\n", format_usd(vault.liquidity_usd)));
+
+    // Gates
+    if vault.gates.is_gated() {
+        output.push_str(&format!("{}\n", "Gates".cyan().bold()));
+        let gates = [
+            ("Receive Shares", vault.gates.receive_shares),
+            ("Send Shares", vault.gates.send_shares),
+            ("Receive Assets", vault.gates.receive_assets),
+            ("Send Assets", vault.gates.send_assets),
+        ];
+        for (label, gate) in gates {
+            if let Some(gate) = gate {
+                output.push_str(&format!("  {:<15} {}\n", format!("{label}:"), format_address(&gate)));
+            }
+        }
+        output.push('\n');
+    }
 
     // Adapters
     if !vault.adapters.is_empty() {

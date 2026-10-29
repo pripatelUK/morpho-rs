@@ -38,8 +38,6 @@ pub trait Vault: Send + Sync {
     fn version(&self) -> VaultVersion;
     /// Returns whether the vault is listed on the Morpho UI.
     fn listed(&self) -> bool;
-    /// Returns whether the vault is whitelisted.
-    fn whitelisted(&self) -> bool;
     /// Returns the vault's underlying asset.
     fn asset(&self) -> &Asset;
     /// Returns the curator's address (if available).

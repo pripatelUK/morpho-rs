@@ -1,0 +1,6 @@
+[submodule "morpho-bots"]
+	path = morpho-bots
+	url = https://github.com/morpho-org/morpho-bots
+[submodule "morpho-skills"]
+	path = morpho-skills
+	url = https://github.com/morpho-org/morpho-skills

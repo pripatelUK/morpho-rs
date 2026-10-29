@@ -1,0 +1,64 @@
+{
+  "data": {
+    "vaultV2ByAddress": {
+      "address": "0xABCdef1234567890ABCdef1234567890ABCdef12",
+      "name": "Test V2 USDC Vault",
+      "symbol": "tv2USDC",
+      "chain": { "id": 1, "network": "ETHEREUM" },
+      "listed": true,
+      "asset": {
+        "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "symbol": "USDC",
+        "name": "USD Coin",
+        "decimals": 6,
+        "price": { "usd": 1.0 }
+      },
+      "curator": { "address": "0xCurator123456789012345678901234567890123" },
+      "owner": { "address": "0xOwner12345678901234567890123456789012345" },
+      "totalAssets": "2000000000000",
+      "totalAssetsUsd": 2000000.0,
+      "totalSupply": "2000000000000",
+      "sharePrice": 1.0,
+      "performanceFee": 0.1,
+      "managementFee": 0.02,
+      "avgNetApy": 0.052,
+      "apy": 0.065,
+      "netApy": 0.057,
+      "liquidity": "500000000000",
+      "liquidityUsd": 500000.0,
+      "adapters": {
+        "items": [
+          {
+            "__typename": "MorphoVaultV2Adapter",
+            "id": "adapter-wrapper",
+            "address": "0xADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9",
+            "type": "MorphoVaultV2",
+            "assets": "1000000000",
+            "assetsUsd": 1000.0,
+            "forceDeallocatePenalty": "10000000000000000",
+            "innerVault": { "address": "0x1111111111111111111111111111111111111111" }
+          }
+        ]
+      },
+      "rewards": [],
+      "warnings": [],
+      "type": "FeeWrapper",
+      "creationTimestamp": "1700000000",
+      "idleAssets": "250000000",
+      "idleAssetsUsd": 250.0,
+      "maxApy": 0.25,
+      "netApyExcludingRewards": 0.057,
+      "forceDeallocatableLiquidity": "1000000000",
+      "liquidityAdapter": {
+        "__typename": "MorphoVaultV2Adapter",
+        "address": "0xADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9"
+      },
+      "gatesConfig": {
+        "receiveSharesGate": { "address": "0x6A7E6A7E6A7E6A7E6A7E6A7E6A7E6A7E6A7E6A7E" },
+        "sendSharesGate": { "address": null },
+        "receiveAssetsGate": { "address": null },
+        "sendAssetsGate": { "address": "0x5E2D5E2D5E2D5E2D5E2D5E2D5E2D5E2D5E2D5E2D" }
+      }
+    }
+  }
+}

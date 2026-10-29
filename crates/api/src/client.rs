@@ -21,7 +21,9 @@ use crate::queries::v2::{
     get_vault_v2_by_address, get_vaults_v2, GetVaultV2ByAddress, GetVaultsV2,
 };
 use crate::types::vault_v1::MarketStateV1;
-use crate::types::vault_v2::{MarketStateV2, MetaMorphoAllocation, MorphoMarketPosition, VaultAdapterData};
+use crate::types::vault_v2::{
+    MarketStateV2, MetaMorphoAllocation, MorphoMarketPosition, VaultAdapterData, VaultV2Gates,
+};
 use crate::types::{
     Asset, MarketInfo, NamedChain, UserAccountOverview, UserMarketPosition,
     UserState, UserVaultPositions, UserVaultV1Position, UserVaultV2Position, VaultAdapter,
@@ -289,6 +291,17 @@ pub const DEFAULT_PAGE_SIZE: i64 = 100;
 
 /// Maximum number of pagination pages to prevent runaway loops.
 const MAX_PAGINATION_PAGES: usize = 50;
+
+/// Maximum page size for V2 vault list queries.
+///
+/// Each V2 vault pulls nested adapter positions and market state, so a page of 20 already
+/// costs ~900k of the API's 1M query-complexity budget. Larger pages are rejected.
+const V2_MAX_PAGE_SIZE: i64 = 20;
+
+/// Pagination page limit for V2 vault lists, sized to fetch as many vaults as
+/// `MAX_PAGINATION_PAGES` default-sized pages would.
+const V2_MAX_PAGINATION_PAGES: usize =
+    MAX_PAGINATION_PAGES * (DEFAULT_PAGE_SIZE / V2_MAX_PAGE_SIZE) as usize;
 
 /// Configuration for vault clients.
 #[derive(Debug, Clone)]
@@ -600,11 +613,11 @@ impl VaultV2Client {
     /// Get V2 vaults with optional filters, auto-paginating through all results.
     pub async fn get_vaults(&self, filters: Option<VaultFiltersV2>) -> Result<Vec<VaultV2>> {
         let gql_filters = filters.as_ref().map(|f| f.to_gql());
-        let page_size = self.config.page_size;
+        let page_size = self.config.page_size.min(V2_MAX_PAGE_SIZE);
         let mut all_vaults = Vec::new();
         let mut skip: i64 = 0;
 
-        for _ in 0..MAX_PAGINATION_PAGES {
+        for _ in 0..V2_MAX_PAGINATION_PAGES {
             let variables = get_vaults_v2::Variables {
                 first: Some(page_size),
                 skip: Some(skip),
@@ -675,8 +688,8 @@ impl VaultV2Client {
     /// This method provides full control over the query parameters including
     /// ordering by various fields like APY, total assets, liquidity, etc.
     ///
-    /// Note: Asset filtering (by symbol or address) is done client-side since
-    /// the Morpho V2 API doesn't support server-side asset filtering.
+    /// Note: Asset symbol filtering is done client-side since the Morpho V2 API
+    /// doesn't support it; asset address and curator filters are applied server-side.
     ///
     /// # Example
     ///
@@ -704,16 +717,16 @@ impl VaultV2Client {
         &self,
         options: VaultQueryOptionsV2,
     ) -> Result<Vec<VaultV2>> {
-        let gql_filters = options.filters.as_ref().map(|f| f.to_gql());
+        let gql_filters = Some(options.server_filters().to_gql());
         let order_by = Some(options.order_by.unwrap_or_default().to_gql());
         let order_direction = Some(options.order_direction.unwrap_or_default().to_gql_v2());
-        let page_size = self.config.page_size;
+        let page_size = self.config.page_size.min(V2_MAX_PAGE_SIZE);
         let limit = options.limit;
         let has_client_filter = options.has_client_filter();
         let mut all_vaults = Vec::new();
         let mut skip: i64 = 0;
 
-        for _ in 0..MAX_PAGINATION_PAGES {
+        for _ in 0..V2_MAX_PAGINATION_PAGES {
             let variables = get_vaults_v2::Variables {
                 first: Some(page_size),
                 skip: Some(skip),
@@ -737,24 +750,6 @@ impl VaultV2Client {
             if let Some(ref symbols) = options.asset_symbols {
                 vaults
                     .retain(|v| symbols.iter().any(|s| s.eq_ignore_ascii_case(&v.asset.symbol)));
-            }
-            if let Some(ref addresses) = options.asset_addresses {
-                vaults.retain(|v| {
-                    addresses
-                        .iter()
-                        .any(|a| v.asset.address.to_string().eq_ignore_ascii_case(a))
-                });
-            }
-            if let Some(ref curators) = options.curator_addresses {
-                vaults.retain(|v| {
-                    v.curator
-                        .map(|c| {
-                            curators
-                                .iter()
-                                .any(|a| c.to_string().eq_ignore_ascii_case(a))
-                        })
-                        .unwrap_or(false)
-                });
             }
 
             all_vaults.extend(vaults);
@@ -1160,22 +1155,8 @@ impl MorphoApiClient {
         let user = data.user_by_address;
 
         let state = UserState::from_gql(
-            user.state.vaults_pnl_usd,
-            user.state.vaults_roe_usd,
             user.state.vaults_assets_usd,
-            user.state.vault_v2s_pnl_usd,
-            user.state.vault_v2s_roe_usd,
             user.state.vault_v2s_assets_usd,
-            user.state.markets_pnl_usd,
-            user.state.markets_roe_usd,
-            user.state.markets_supply_pnl_usd,
-            user.state.markets_supply_roe_usd,
-            user.state.markets_borrow_pnl_usd,
-            user.state.markets_borrow_roe_usd,
-            user.state.markets_collateral_pnl_usd,
-            user.state.markets_collateral_roe_usd,
-            user.state.markets_margin_pnl_usd,
-            user.state.markets_margin_roe_usd,
             user.state.markets_collateral_usd,
             user.state.markets_supply_assets_usd,
             user.state.markets_borrow_assets_usd,
@@ -1443,7 +1424,7 @@ impl MorphoClient {
 // Conversion functions from GraphQL types to our types
 
 // Helper imports for conversion
-use crate::types::scalars::parse_bigint;
+use crate::types::scalars::{parse_address, parse_bigint};
 use alloy_primitives::B256;
 use std::str::FromStr;
 
@@ -1460,7 +1441,7 @@ macro_rules! impl_v1_vault_conversion {
         fn $market_state_fn(
             market: &$mod::MarketFields,
         ) -> Option<MarketStateV1> {
-            let market_id = B256::from_str(&market.unique_key).ok()?;
+            let market_id = B256::from_str(&market.market_id).ok()?;
             let ms = market.state.as_ref()?;
             let lltv = parse_bigint(&market.lltv)?;
             let timestamp: u64 = ms.timestamp.0.parse().ok()?;
@@ -1495,14 +1476,14 @@ macro_rules! impl_v1_vault_conversion {
                 &s.timelock,
                 s.apy,
                 s.net_apy,
-                s.share_price.as_deref().unwrap_or("0"),
+                s.share_price_number,
                 s.allocation
                     .iter()
                     .filter_map(|a| {
                         let market = &a.market;
                         let market_state = $market_state_fn(market);
                         VaultAllocation::from_gql(
-                            market.unique_key.clone(),
+                            market.market_id.clone(),
                             Some(market.loan_asset.symbol.clone()),
                             Some(market.loan_asset.address.as_str()),
                             market.collateral_asset.as_ref().map(|ca| ca.symbol.clone()),
@@ -1510,7 +1491,8 @@ macro_rules! impl_v1_vault_conversion {
                             &a.supply_assets,
                             a.supply_assets_usd,
                             &a.supply_cap,
-                            a.enabled,
+                            // MetaMorpho keeps every enabled market in the withdraw queue.
+                            a.withdraw_queue_index.is_some(),
                             a.supply_queue_index.map(|i| i as i32),
                             a.withdraw_queue_index.map(|i| i as i32),
                             market_state,
@@ -1531,13 +1513,12 @@ macro_rules! impl_v1_vault_conversion {
                 chain_id,
                 v.listed,
                 v.featured,
-                v.whitelisted,
                 Asset::from_gql(
                     &asset.address,
                     asset.symbol.clone(),
                     Some(asset.name.clone()),
                     asset.decimals,
-                    asset.price_usd,
+                    asset.price.as_ref().map(|p| p.usd),
                 )?,
                 v.state.as_ref().and_then($state_fn),
                 v.allocators
@@ -1572,88 +1553,86 @@ impl_v1_vault_conversion!(
     get_vault_v1_by_address
 );
 
-/// Parse yearly supply tokens from string to f64.
-fn parse_yearly_supply(s: &str) -> Option<f64> {
-    s.parse::<f64>().ok()
-}
-
 /// Macro to generate V2 vault and adapter conversion functions for both query types.
-/// V2 uses query-specific type names (not fragment-spread types like V1), so we pass them explicitly.
+/// Both queries spread the same `VaultV2Fields` fragment, but graphql_client generates
+/// a separate copy of the fragment types per query module, so we pass the module in.
 macro_rules! impl_v2_vault_conversion {
-    ($vault_fn:ident, $adapter_fn:ident, $vault_type:ty, $adapter_type:ty, $adapter_on_type:path) => {
-        #[allow(unreachable_patterns)]
-        fn $adapter_fn(a: $adapter_type) -> Option<VaultAdapter> {
-            use $adapter_on_type::*;
+    ($vault_fn:ident, $adapter_fn:ident, $market_state_fn:ident, $mod:ident) => {
+        fn $market_state_fn(market: &$mod::MarketFields) -> Option<MarketStateV2> {
+            let ms = market.state.as_ref()?;
+            Some(MarketStateV2 {
+                id: B256::from_str(&market.market_id).ok()?,
+                total_supply_assets: parse_bigint(&ms.supply_assets)?,
+                total_borrow_assets: parse_bigint(&ms.borrow_assets)?,
+                total_supply_shares: parse_bigint(&ms.supply_shares)?,
+                total_borrow_shares: parse_bigint(&ms.borrow_shares)?,
+                last_update: ms.timestamp.0.parse().ok()?,
+                fee: fee_to_wad(ms.fee),
+                rate_at_target: ms.rate_at_target.as_ref().and_then(|r| parse_bigint(r)),
+                price: ms.price.as_ref().and_then(|p| parse_bigint(p)),
+                lltv: parse_bigint(&market.lltv)?,
+            })
+        }
+
+        fn $adapter_fn(a: $mod::VaultV2FieldsAdaptersItems) -> Option<VaultAdapter> {
+            use $mod::VaultV2FieldsAdaptersItemsOn as On;
 
             let data = match &a.on {
-                MorphoMarketV1Adapter(adapter) => {
-                    let positions: Vec<MorphoMarketPosition> = adapter.positions.items.as_ref()
+                On::MorphoMarketV1Adapter(adapter) => {
+                    let positions: Vec<MorphoMarketPosition> = adapter
+                        .positions
+                        .items
+                        .as_ref()
                         .map(|items| {
-                            items.iter().filter_map(|pos| {
-                                let market_id = B256::from_str(&pos.market.unique_key).ok()?;
-                                let market_state = pos.market.state.as_ref().and_then(|ms| {
-                                    let lltv = parse_bigint(&pos.market.lltv)?;
-                                    let timestamp: u64 = ms.timestamp.0.parse().ok()?;
-                                    Some(MarketStateV2 {
-                                        id: market_id,
-                                        total_supply_assets: parse_bigint(&ms.supply_assets)?,
-                                        total_borrow_assets: parse_bigint(&ms.borrow_assets)?,
-                                        total_supply_shares: parse_bigint(&ms.supply_shares)?,
-                                        total_borrow_shares: parse_bigint(&ms.borrow_shares)?,
-                                        last_update: timestamp,
-                                        fee: fee_to_wad(ms.fee),
-                                        rate_at_target: ms.rate_at_target.as_ref().and_then(|r| parse_bigint(r)),
-                                        price: ms.price.as_ref().and_then(|p| parse_bigint(p)),
-                                        lltv,
+                            items
+                                .iter()
+                                .filter_map(|pos| {
+                                    let state = pos.state.as_ref()?;
+                                    Some(MorphoMarketPosition {
+                                        supply_assets: state
+                                            .supply_assets
+                                            .as_ref()
+                                            .and_then(|v| parse_bigint(v))?,
+                                        supply_shares: parse_bigint(&state.supply_shares)?,
+                                        market_id: B256::from_str(&pos.market.market_id).ok()?,
+                                        market_state: $market_state_fn(&pos.market),
                                     })
-                                });
-                                Some(MorphoMarketPosition {
-                                    supply_assets: parse_bigint(&pos.supply_assets)?,
-                                    supply_shares: parse_bigint(&pos.supply_shares)?,
-                                    market_id,
-                                    market_state,
                                 })
-                            }).collect()
+                                .collect()
                         })
                         .unwrap_or_default();
                     Some(VaultAdapterData::MorphoMarketV1 { positions })
                 }
-                MetaMorphoAdapter(adapter) => {
-                    let allocations: Vec<MetaMorphoAllocation> = adapter.meta_morpho.state.as_ref()
+                On::MetaMorphoAdapter(adapter) => {
+                    let allocations: Vec<MetaMorphoAllocation> = adapter
+                        .meta_morpho
+                        .state
+                        .as_ref()
                         .map(|state| {
-                            state.allocation.iter().filter_map(|alloc| {
-                                let market_id = B256::from_str(&alloc.market.unique_key).ok()?;
-                                let market_state = alloc.market.state.as_ref().and_then(|ms| {
-                                    let lltv = parse_bigint(&alloc.market.lltv)?;
-                                    let timestamp: u64 = ms.timestamp.0.parse().ok()?;
-                                    Some(MarketStateV2 {
-                                        id: market_id,
-                                        total_supply_assets: parse_bigint(&ms.supply_assets)?,
-                                        total_borrow_assets: parse_bigint(&ms.borrow_assets)?,
-                                        total_supply_shares: parse_bigint(&ms.supply_shares)?,
-                                        total_borrow_shares: parse_bigint(&ms.borrow_shares)?,
-                                        last_update: timestamp,
-                                        fee: fee_to_wad(ms.fee),
-                                        rate_at_target: ms.rate_at_target.as_ref().and_then(|r| parse_bigint(r)),
-                                        price: ms.price.as_ref().and_then(|p| parse_bigint(p)),
-                                        lltv,
+                            state
+                                .allocation
+                                .iter()
+                                .filter_map(|alloc| {
+                                    Some(MetaMorphoAllocation {
+                                        supply_assets: parse_bigint(&alloc.supply_assets)?,
+                                        supply_cap: parse_bigint(&alloc.supply_cap)?,
+                                        // MetaMorpho keeps every enabled market in the withdraw queue.
+                                        enabled: alloc.withdraw_queue_index.is_some(),
+                                        supply_queue_index: alloc.supply_queue_index.map(|i| i as i32),
+                                        withdraw_queue_index: alloc
+                                            .withdraw_queue_index
+                                            .map(|i| i as i32),
+                                        market_id: B256::from_str(&alloc.market.market_id).ok()?,
+                                        market_state: $market_state_fn(&alloc.market),
                                     })
-                                });
-                                Some(MetaMorphoAllocation {
-                                    supply_assets: parse_bigint(&alloc.supply_assets)?,
-                                    supply_cap: parse_bigint(&alloc.supply_cap)?,
-                                    enabled: alloc.enabled,
-                                    supply_queue_index: alloc.supply_queue_index.map(|i| i as i32),
-                                    withdraw_queue_index: alloc.withdraw_queue_index.map(|i| i as i32),
-                                    market_id,
-                                    market_state,
                                 })
-                            }).collect()
+                                .collect()
                         })
                         .unwrap_or_default();
                     Some(VaultAdapterData::MetaMorpho { allocations })
                 }
-                _ => None,
+                On::MorphoVaultV2Adapter(adapter) => parse_address(&adapter.inner_vault.address)
+                    .map(|inner_vault| VaultAdapterData::MorphoVaultV2 { inner_vault }),
             };
 
             VaultAdapter::from_gql(
@@ -1662,13 +1641,24 @@ macro_rules! impl_v2_vault_conversion {
                 format!("{:?}", a.type_),
                 &a.assets,
                 a.assets_usd,
+                &a.force_deallocate_penalty,
                 data,
             )
         }
 
-        fn $vault_fn(v: $vault_type) -> Option<VaultV2> {
+        fn $vault_fn(v: $mod::VaultV2Fields) -> Option<VaultV2> {
             let chain_id = v.chain.id;
             let asset = &v.asset;
+            let gates = v
+                .gates_config
+                .as_ref()
+                .map(|g| VaultV2Gates {
+                    receive_shares: g.receive_shares_gate.address.as_deref().and_then(parse_address),
+                    send_shares: g.send_shares_gate.address.as_deref().and_then(parse_address),
+                    receive_assets: g.receive_assets_gate.address.as_deref().and_then(parse_address),
+                    send_assets: g.send_assets_gate.address.as_deref().and_then(parse_address),
+                })
+                .unwrap_or_default();
 
             VaultV2::from_gql(
                 &v.address,
@@ -1676,46 +1666,42 @@ macro_rules! impl_v2_vault_conversion {
                 v.symbol,
                 chain_id,
                 v.listed,
-                v.whitelisted,
+                v.type_.as_ref().map(|t| format!("{:?}", t)),
                 Asset::from_gql(
                     &asset.address,
                     asset.symbol.clone(),
                     Some(asset.name.clone()),
                     asset.decimals,
-                    asset.price_usd,
+                    asset.price.as_ref().map(|p| p.usd),
                 )?,
                 Some(v.curator.address.as_str()),
                 Some(v.owner.address.as_str()),
                 v.total_assets.as_deref().unwrap_or("0"),
                 v.total_assets_usd,
                 &v.total_supply,
+                &v.idle_assets,
+                v.idle_assets_usd,
                 Some(v.share_price),
                 Some(v.performance_fee),
                 Some(v.management_fee),
-                v.avg_apy,
+                Some(v.max_apy),
                 v.avg_net_apy,
                 v.apy,
                 v.net_apy,
+                v.net_apy_excluding_rewards,
                 &v.liquidity,
                 v.liquidity_usd,
+                &v.force_deallocatable_liquidity,
+                v.liquidity_adapter.as_ref().map(|a| a.address.as_str()),
+                gates,
                 v.adapters
                     .items
-                    .map(|items| {
-                        items
-                            .into_iter()
-                            .filter_map($adapter_fn)
-                            .collect()
-                    })
+                    .map(|items| items.into_iter().filter_map($adapter_fn).collect())
                     .unwrap_or_default(),
                 v.rewards
                     .into_iter()
                     .filter_map(|r| {
-                        VaultReward::from_gql(
-                            &r.asset.address,
-                            r.asset.symbol.clone(),
-                            r.supply_apr,
-                            parse_yearly_supply(&r.yearly_supply_tokens),
-                        )
+                        VaultReward::from_gql(&r.asset.address, r.asset.symbol.clone(), r.supply_apr)
                     })
                     .collect(),
                 v.warnings
@@ -1730,18 +1716,13 @@ macro_rules! impl_v2_vault_conversion {
     };
 }
 
-impl_v2_vault_conversion!(
-    convert_v2_vault, convert_v2_adapter,
-    get_vaults_v2::GetVaultsV2VaultV2sItems,
-    get_vaults_v2::GetVaultsV2VaultV2sItemsAdaptersItems,
-    get_vaults_v2::GetVaultsV2VaultV2sItemsAdaptersItemsOn
-);
+impl_v2_vault_conversion!(convert_v2_vault, convert_v2_adapter, convert_v2_market_state, get_vaults_v2);
 
 impl_v2_vault_conversion!(
-    convert_v2_vault_single, convert_v2_adapter_single,
-    get_vault_v2_by_address::GetVaultV2ByAddressVaultV2ByAddress,
-    get_vault_v2_by_address::GetVaultV2ByAddressVaultV2ByAddressAdaptersItems,
-    get_vault_v2_by_address::GetVaultV2ByAddressVaultV2ByAddressAdaptersItemsOn
+    convert_v2_vault_single,
+    convert_v2_adapter_single,
+    convert_v2_market_state_single,
+    get_vault_v2_by_address
 );
 
 // User position conversion functions
@@ -1751,19 +1732,26 @@ macro_rules! impl_user_v1_position_conversion {
         fn $fn_name(p: $position_type) -> Option<UserVaultV1Position> {
             let vault = VaultInfo::from_gql(&p.vault.address, p.vault.name, p.vault.symbol, p.vault.chain.id)?;
 
-            let state = p.state.as_ref().and_then(|s| {
-                VaultPositionState::from_gql(
-                    &s.shares,
-                    s.assets.as_deref(),
-                    s.assets_usd,
-                    s.pnl.as_deref(),
-                    s.pnl_usd,
-                    s.roe,
-                    s.roe_usd,
-                )
-            });
+            // Shares/assets moved from the position onto its state; a position without
+            // state carries no balance information, so skip it.
+            let s = p.state.as_ref()?;
+            let state = VaultPositionState::from_gql(
+                &s.shares,
+                s.assets.as_deref(),
+                s.assets_usd,
+                s.pnl.as_deref(),
+                s.pnl_usd,
+                s.roe,
+            );
 
-            UserVaultV1Position::from_gql(p.id, &p.shares, &p.assets, p.assets_usd, vault, state)
+            UserVaultV1Position::from_gql(
+                p.id,
+                &s.shares,
+                s.assets.as_deref().unwrap_or("0"),
+                s.assets_usd,
+                vault,
+                state,
+            )
         }
     };
 }
@@ -1781,7 +1769,6 @@ macro_rules! impl_user_v2_position_conversion {
                 p.pnl.as_deref(),
                 p.pnl_usd,
                 p.roe,
-                p.roe_usd,
                 vault,
             )
         }
@@ -1809,23 +1796,24 @@ fn convert_user_market_position(
     p: get_user_account_overview::GetUserAccountOverviewUserByAddressMarketPositions,
 ) -> Option<UserMarketPosition> {
     let market = MarketInfo::from_gql(
-        p.market.unique_key,
+        p.market.market_id,
         Some(p.market.loan_asset.symbol),
         Some(p.market.loan_asset.address.as_str()),
         p.market.collateral_asset.as_ref().map(|c| c.symbol.clone()),
         p.market.collateral_asset.as_ref().map(|c| c.address.as_str()),
     );
 
+    let s = p.state.as_ref()?;
     UserMarketPosition::from_gql(
         p.id,
-        &p.supply_shares,
-        &p.supply_assets,
-        p.supply_assets_usd,
-        &p.borrow_shares,
-        &p.borrow_assets,
-        p.borrow_assets_usd,
-        &p.collateral,
-        p.collateral_usd,
+        &s.supply_shares,
+        s.supply_assets.as_deref().unwrap_or("0"),
+        s.supply_assets_usd,
+        &s.borrow_shares,
+        s.borrow_assets.as_deref().unwrap_or("0"),
+        s.borrow_assets_usd,
+        &s.collateral,
+        s.collateral_usd,
         p.health_factor,
         market,
     )
@@ -1931,13 +1919,6 @@ mod tests {
         assert_eq!(config.rpc_url, Some("https://eth.llamarpc.com".to_string()));
         assert_eq!(config.private_key, Some("0xabcd".to_string()));
         assert!(!config.auto_approve);
-    }
-
-    #[test]
-    fn test_parse_yearly_supply() {
-        assert_eq!(parse_yearly_supply("1000.5"), Some(1000.5));
-        assert_eq!(parse_yearly_supply("0"), Some(0.0));
-        assert_eq!(parse_yearly_supply("invalid"), None);
     }
 }
 
