@@ -2,7 +2,7 @@
 
 use alloy_chains::NamedChain;
 use anyhow::Result;
-use morpho_rs_api::{ClientConfig, VaultV2, VaultV2Client};
+use morpho_rs_api::{ClientConfig, VaultFiltersV2, VaultQueryOptionsV2, VaultV2, VaultV2Client};
 
 use crate::cli::{InfoArgs, ListArgs, OutputFormat};
 use crate::output::{format_v2_vault_detail, format_v2_vaults_table};
@@ -28,44 +28,25 @@ fn client_config(api_url: Option<&str>) -> Result<ClientConfig> {
 }
 
 pub async fn run_v2_list(args: &ListArgs, format: OutputFormat, api_url: Option<&str>) -> Result<()> {
-    // Use larger page size when client-side filtering is needed (e.g., curator filter)
-    // to ensure we have enough results after filtering
-    let page_size = if args.curator.is_some() {
-        100.min(args.limit.max(50) as i64)
-    } else {
-        args.limit as i64
-    };
-    let config = client_config_with_page_size(page_size, api_url)?;
+    let config = client_config_with_page_size(args.limit as i64, api_url)?;
     let client = VaultV2Client::with_config(config);
 
-    let vaults = if args.whitelisted {
-        // Use whitelisted filter
-        let chain = args.chain.map(|c| c.0);
-        client.get_whitelisted_vaults(chain).await?
-    } else if let Some(chain_arg) = args.chain {
-        // Use chain filter
-        client.get_vaults_by_chain(chain_arg.0).await?
-    } else {
-        // Get all vaults (no filters)
-        client.get_vaults(None).await?
-    };
-
-    // Apply additional client-side filters
-    let mut vaults: Vec<VaultV2> = vaults;
-
-    // V2 doesn't have API-level curator filter, so filter client-side
-    if let Some(curator_address) = &args.curator {
-        let curator_lower = curator_address.to_lowercase();
-        vaults.retain(|v| {
-            v.curator
-                .as_ref()
-                .map(|c| format!("{}", c).to_lowercase() == curator_lower)
-                .unwrap_or(false)
-        });
+    // All filters are applied server-side; `limit` stops pagination early.
+    let mut filters = VaultFiltersV2::new();
+    if args.whitelisted {
+        filters = filters.listed(true);
     }
+    if let Some(chain_arg) = args.chain {
+        filters = filters.chain(chain_arg.0);
+    }
+    if let Some(curator_address) = &args.curator {
+        filters = filters.curators([curator_address.as_str()]);
+    }
+    let options = VaultQueryOptionsV2::new()
+        .filters(filters)
+        .limit(args.limit as i64);
 
-    // Limit results
-    vaults.truncate(args.limit);
+    let vaults: Vec<VaultV2> = client.get_vaults_with_options(options).await?;
 
     // Output
     match format {

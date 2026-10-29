@@ -11,7 +11,7 @@ fragment MarketStateFields on MarketState {
 }
 
 fragment MarketFields on Market {
-  uniqueKey
+  marketId
   lltv
   loanAsset {
     address
@@ -33,7 +33,6 @@ fragment AllocationFields on VaultAllocation {
   supplyAssets
   supplyAssetsUsd
   supplyCap
-  enabled
   supplyQueueIndex
   withdrawQueueIndex
 }
@@ -44,7 +43,7 @@ fragment VaultStateFields on VaultState {
   totalSupply
   apy
   netApy
-  sharePrice
+  sharePriceNumber
   fee
   timelock
   curator
@@ -56,13 +55,11 @@ fragment VaultStateFields on VaultState {
 }
 
 fragment VaultFields on Vault {
-  id
   address
   name
   symbol
   listed
   featured
-  whitelisted
   chain {
     id
     network
@@ -72,7 +69,9 @@ fragment VaultFields on Vault {
     symbol
     decimals
     name
-    priceUsd
+    price {
+      usd
+    }
   }
   state {
     ...VaultStateFields

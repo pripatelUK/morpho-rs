@@ -65,8 +65,6 @@ pub enum VaultOrderByV1 {
     DailyApy,
     /// Order by daily net APY.
     DailyNetApy,
-    /// Order by Credora risk score.
-    CredoraRiskScore,
 }
 
 impl VaultOrderByV1 {
@@ -86,7 +84,6 @@ impl VaultOrderByV1 {
             VaultOrderByV1::AvgNetApy => VaultOrderByV1Gql::AvgNetApy,
             VaultOrderByV1::DailyApy => VaultOrderByV1Gql::DailyApy,
             VaultOrderByV1::DailyNetApy => VaultOrderByV1Gql::DailyNetApy,
-            VaultOrderByV1::CredoraRiskScore => VaultOrderByV1Gql::CredoraRiskScore,
         }
     }
 }

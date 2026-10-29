@@ -82,7 +82,7 @@ impl VaultQueryOptionsV1 {
 /// Options for V2 vault queries.
 ///
 /// Combines filters, ordering, and pagination in a builder pattern.
-/// Also supports client-side asset filtering since the V2 API doesn't support it server-side.
+/// Also supports client-side asset symbol filtering, which the V2 API doesn't support.
 ///
 /// # Example
 ///
@@ -107,11 +107,11 @@ pub struct VaultQueryOptionsV2 {
     pub order_direction: Option<OrderDirection>,
     /// Maximum number of results to return.
     pub limit: Option<i64>,
-    /// Asset addresses to filter by (client-side, API doesn't support this).
+    /// Asset addresses to filter by (merged into the server-side filters).
     pub asset_addresses: Option<Vec<String>>,
     /// Asset symbols to filter by (client-side, API doesn't support this).
     pub asset_symbols: Option<Vec<String>>,
-    /// Curator addresses to filter by (client-side, API doesn't support this).
+    /// Curator addresses to filter by (merged into the server-side filters).
     pub curator_addresses: Option<Vec<String>>,
 }
 
@@ -145,10 +145,9 @@ impl VaultQueryOptionsV2 {
         self
     }
 
-    /// Filter by asset addresses (client-side).
+    /// Filter by asset addresses.
     ///
-    /// Note: The Morpho V2 API doesn't support asset filtering server-side,
-    /// so this filtering is done client-side after fetching results.
+    /// Equivalent to [`VaultFiltersV2::asset_addresses`]; applied server-side.
     pub fn asset_addresses<I, S>(mut self, addresses: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -160,7 +159,7 @@ impl VaultQueryOptionsV2 {
 
     /// Filter by asset symbols (client-side).
     ///
-    /// Note: The Morpho V2 API doesn't support asset filtering server-side,
+    /// Note: The Morpho V2 API doesn't support asset symbol filtering server-side,
     /// so this filtering is done client-side after fetching results.
     pub fn asset_symbols<I, S>(mut self, symbols: I) -> Self
     where
@@ -171,10 +170,9 @@ impl VaultQueryOptionsV2 {
         self
     }
 
-    /// Filter by curator addresses (client-side).
+    /// Filter by curator addresses.
     ///
-    /// Note: The Morpho V2 API doesn't support curator filtering server-side,
-    /// so this filtering is done client-side after fetching results.
+    /// Equivalent to [`VaultFiltersV2::curators`]; applied server-side.
     pub fn curator_addresses<I, S>(mut self, addresses: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -208,11 +206,21 @@ impl VaultQueryOptionsV2 {
             .limit(limit)
     }
 
+    /// Server-side filters, with `asset_addresses` and `curator_addresses` merged in.
+    pub fn server_filters(&self) -> VaultFiltersV2 {
+        let mut filters = self.filters.clone().unwrap_or_default();
+        if let Some(addresses) = &self.asset_addresses {
+            filters.asset_addresses = Some(addresses.clone());
+        }
+        if let Some(curators) = &self.curator_addresses {
+            filters.curator_addresses = Some(curators.clone());
+        }
+        filters
+    }
+
     /// Check if any client-side filtering is configured.
     pub fn has_client_filter(&self) -> bool {
-        self.asset_addresses.is_some()
-            || self.asset_symbols.is_some()
-            || self.curator_addresses.is_some()
+        self.asset_symbols.is_some()
     }
 
     /// Check if any client-side asset filtering is configured.
@@ -305,6 +313,19 @@ mod tests {
     }
 
     #[test]
+    fn test_v2_options_server_filters_merges_addresses() {
+        let options = VaultQueryOptionsV2::new()
+            .filters(VaultFiltersV2::new().chain(NamedChain::Base))
+            .asset_addresses(["0xasset"])
+            .curator_addresses(["0xcurator"]);
+
+        let filters = options.server_filters();
+        assert_eq!(filters.chain_ids, Some(vec![8453]));
+        assert_eq!(filters.asset_addresses, Some(vec!["0xasset".to_string()]));
+        assert_eq!(filters.curator_addresses, Some(vec!["0xcurator".to_string()]));
+    }
+
+    #[test]
     fn test_v2_options_has_client_filter() {
         let no_filter = VaultQueryOptionsV2::new();
         assert!(!no_filter.has_client_filter());
@@ -312,13 +333,14 @@ mod tests {
         let with_symbols = VaultQueryOptionsV2::new().asset_symbols(["USDC"]);
         assert!(with_symbols.has_client_filter());
 
+        // Asset address and curator filters are applied server-side.
         let with_addresses = VaultQueryOptionsV2::new()
             .asset_addresses(["0x1234567890123456789012345678901234567890"]);
-        assert!(with_addresses.has_client_filter());
+        assert!(!with_addresses.has_client_filter());
 
         let with_curators = VaultQueryOptionsV2::new()
             .curator_addresses(["0x1234567890123456789012345678901234567890"]);
-        assert!(with_curators.has_client_filter());
+        assert!(!with_curators.has_client_filter());
 
         let with_all = VaultQueryOptionsV2::new()
             .asset_symbols(["USDC"])

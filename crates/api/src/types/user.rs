@@ -36,8 +36,6 @@ pub struct VaultPositionState {
     pub pnl_usd: Option<f64>,
     /// Return on equity.
     pub roe: Option<f64>,
-    /// Return on equity in USD terms.
-    pub roe_usd: Option<f64>,
 }
 
 /// A user's position in a V1 vault.
@@ -74,8 +72,6 @@ pub struct UserVaultV2Position {
     pub pnl_usd: Option<f64>,
     /// Return on equity.
     pub roe: Option<f64>,
-    /// Return on equity in USD terms.
-    pub roe_usd: Option<f64>,
     /// The vault.
     pub vault: VaultInfo,
 }
@@ -125,38 +121,10 @@ pub struct UserMarketPosition {
 /// User's aggregated state across all positions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserState {
-    /// Total PnL from V1 vaults in USD.
-    pub vaults_pnl_usd: f64,
-    /// Total ROE from V1 vaults in USD.
-    pub vaults_roe_usd: f64,
     /// Total assets in V1 vaults in USD.
     pub vaults_assets_usd: f64,
-    /// Total PnL from V2 vaults in USD.
-    pub vault_v2s_pnl_usd: f64,
-    /// Total ROE from V2 vaults in USD.
-    pub vault_v2s_roe_usd: f64,
     /// Total assets in V2 vaults in USD.
     pub vault_v2s_assets_usd: f64,
-    /// Total PnL from markets in USD.
-    pub markets_pnl_usd: f64,
-    /// Total ROE from markets in USD.
-    pub markets_roe_usd: f64,
-    /// Total supply PnL from markets in USD.
-    pub markets_supply_pnl_usd: f64,
-    /// Total supply ROE from markets in USD.
-    pub markets_supply_roe_usd: f64,
-    /// Total borrow PnL from markets in USD.
-    pub markets_borrow_pnl_usd: f64,
-    /// Total borrow ROE from markets in USD.
-    pub markets_borrow_roe_usd: f64,
-    /// Total collateral PnL from markets in USD.
-    pub markets_collateral_pnl_usd: f64,
-    /// Total collateral ROE from markets in USD.
-    pub markets_collateral_roe_usd: f64,
-    /// Total margin PnL from markets in USD.
-    pub markets_margin_pnl_usd: f64,
-    /// Total margin ROE from markets in USD.
-    pub markets_margin_roe_usd: f64,
     /// Total collateral in markets in USD.
     pub markets_collateral_usd: f64,
     /// Total supply assets in markets in USD.
@@ -220,7 +188,6 @@ impl VaultPositionState {
         pnl: Option<&str>,
         pnl_usd: Option<f64>,
         roe: Option<f64>,
-        roe_usd: Option<f64>,
     ) -> Option<Self> {
         Some(VaultPositionState {
             shares: parse_bigint(shares)?,
@@ -229,7 +196,6 @@ impl VaultPositionState {
             pnl: pnl.and_then(parse_bigint),
             pnl_usd,
             roe,
-            roe_usd,
         })
     }
 }
@@ -272,7 +238,6 @@ impl UserVaultV2Position {
         pnl: Option<&str>,
         pnl_usd: Option<f64>,
         roe: Option<f64>,
-        roe_usd: Option<f64>,
         vault: VaultInfo,
     ) -> Option<Self> {
         Some(UserVaultV2Position {
@@ -283,7 +248,6 @@ impl UserVaultV2Position {
             pnl: pnl.and_then(parse_bigint),
             pnl_usd,
             roe,
-            roe_usd,
             vault,
         })
     }
@@ -353,46 +317,17 @@ impl UserState {
     ///
     /// All fields are `f64` USD values that map directly from the GraphQL response.
     /// This always succeeds since all fields are plain numeric types.
-    #[allow(clippy::too_many_arguments)]
     pub fn from_gql(
-        vaults_pnl_usd: f64,
-        vaults_roe_usd: f64,
         vaults_assets_usd: f64,
-        vault_v2s_pnl_usd: f64,
-        vault_v2s_roe_usd: f64,
         vault_v2s_assets_usd: f64,
-        markets_pnl_usd: f64,
-        markets_roe_usd: f64,
-        markets_supply_pnl_usd: f64,
-        markets_supply_roe_usd: f64,
-        markets_borrow_pnl_usd: f64,
-        markets_borrow_roe_usd: f64,
-        markets_collateral_pnl_usd: f64,
-        markets_collateral_roe_usd: f64,
-        markets_margin_pnl_usd: f64,
-        markets_margin_roe_usd: f64,
         markets_collateral_usd: f64,
         markets_supply_assets_usd: f64,
         markets_borrow_assets_usd: f64,
         markets_margin_usd: f64,
     ) -> Self {
         UserState {
-            vaults_pnl_usd,
-            vaults_roe_usd,
             vaults_assets_usd,
-            vault_v2s_pnl_usd,
-            vault_v2s_roe_usd,
             vault_v2s_assets_usd,
-            markets_pnl_usd,
-            markets_roe_usd,
-            markets_supply_pnl_usd,
-            markets_supply_roe_usd,
-            markets_borrow_pnl_usd,
-            markets_borrow_roe_usd,
-            markets_collateral_pnl_usd,
-            markets_collateral_roe_usd,
-            markets_margin_pnl_usd,
-            markets_margin_roe_usd,
             markets_collateral_usd,
             markets_supply_assets_usd,
             markets_borrow_assets_usd,

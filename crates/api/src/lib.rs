@@ -88,5 +88,5 @@ pub use types::{
     UserMarketPosition, UserState, UserVaultPositions, UserVaultV1Position, UserVaultV2Position,
     Vault, VaultAdapter, VaultAdapterData, VaultAllocation, VaultAllocator, VaultInfo,
     VaultOrderByV1, VaultOrderByV2, VaultPositionState, VaultReward, VaultStateV1, VaultV1,
-    VaultV2, VaultV2Warning, VaultVersion, VaultWarning, SUPPORTED_CHAINS,
+    VaultV2, VaultV2Gates, VaultV2Warning, VaultVersion, VaultWarning, SUPPORTED_CHAINS,
 };

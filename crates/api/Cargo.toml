@@ -1,6 +1,6 @@
 [package]
 name = "morpho-rs-api"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 description = "Rust API library for querying Morpho V1 (MetaMorpho) and V2 vaults via GraphQL"
 license = "MIT"

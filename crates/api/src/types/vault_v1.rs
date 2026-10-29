@@ -24,8 +24,6 @@ pub struct VaultV1 {
     pub listed: bool,
     /// Whether the vault is featured.
     pub featured: bool,
-    /// Whether the vault is whitelisted.
-    pub whitelisted: bool,
     /// The vault's underlying asset.
     pub asset: Asset,
     /// Current vault state.
@@ -59,8 +57,8 @@ pub struct VaultStateV1 {
     pub apy: f64,
     /// Net APY after fees (as a fraction).
     pub net_apy: f64,
-    /// Current share price.
-    pub share_price: U256,
+    /// Current share price (assets per share, in whole asset units).
+    pub share_price: Option<f64>,
     /// Allocation across markets.
     pub allocation: Vec<VaultAllocation>,
 }
@@ -150,7 +148,6 @@ impl VaultV1 {
         chain_id: i64,
         listed: bool,
         featured: bool,
-        whitelisted: bool,
         asset: Asset,
         state: Option<VaultStateV1>,
         allocators: Vec<VaultAllocator>,
@@ -163,7 +160,6 @@ impl VaultV1 {
             chain: chain_from_id(chain_id)?,
             listed,
             featured,
-            whitelisted,
             asset,
             state,
             allocators,
@@ -175,7 +171,7 @@ impl VaultV1 {
 impl VaultStateV1 {
     /// Convert GraphQL response fields into a [`VaultStateV1`].
     ///
-    /// Parses bigint strings (`total_assets`, `total_supply`, `share_price`, `timelock`)
+    /// Parses bigint strings (`total_assets`, `total_supply`, `timelock`)
     /// into [`U256`] and optional address strings into [`Address`]. Returns `None` if
     /// any required bigint field cannot be parsed.
     #[allow(clippy::too_many_arguments)]
@@ -190,7 +186,7 @@ impl VaultStateV1 {
         timelock: &str,
         apy: f64,
         net_apy: f64,
-        share_price: &str,
+        share_price: Option<f64>,
         allocation: Vec<VaultAllocation>,
     ) -> Option<Self> {
         Some(VaultStateV1 {
@@ -204,7 +200,7 @@ impl VaultStateV1 {
             timelock: parse_bigint(timelock)?.to::<u64>(),
             apy,
             net_apy,
-            share_price: parse_bigint(share_price)?,
+            share_price,
             allocation,
         })
     }
@@ -285,10 +281,6 @@ impl Vault for VaultV1 {
 
     fn listed(&self) -> bool {
         self.listed
-    }
-
-    fn whitelisted(&self) -> bool {
-        self.whitelisted
     }
 
     fn asset(&self) -> &super::asset::Asset {

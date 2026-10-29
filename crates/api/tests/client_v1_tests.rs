@@ -39,7 +39,6 @@ async fn test_get_vaults_multiple() {
     assert_eq!(vault1.chain, NamedChain::Mainnet);
     assert!(vault1.listed);
     assert!(!vault1.featured);
-    assert!(vault1.whitelisted);
     assert_eq!(vault1.asset.symbol, "USDC");
     assert_eq!(vault1.asset.decimals, 6);
 
@@ -221,9 +220,9 @@ async fn test_get_whitelisted_vaults() {
     let vaults = client.get_whitelisted_vaults(None).await.unwrap();
 
     assert_eq!(vaults.len(), 2);
-    // All returned vaults should be whitelisted
+    // All returned vaults should be listed
     for vault in &vaults {
-        assert!(vault.whitelisted);
+        assert!(vault.listed);
     }
 }
 
@@ -272,7 +271,6 @@ async fn test_vault_trait_implementation() {
     assert_eq!(vault.symbol(), "steakUSDC");
     assert_eq!(vault.chain(), NamedChain::Mainnet);
     assert!(vault.listed());
-    assert!(vault.whitelisted());
     assert_eq!(vault.asset().symbol, "USDC");
     assert_eq!(vault.total_assets(), U256::from(1_000_000_000_000u64));
     assert_eq!(vault.total_assets_usd(), Some(1_000_000.0));

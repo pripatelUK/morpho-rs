@@ -9,11 +9,9 @@ use crate::queries::v2::get_vaults_v2::VaultV2sFilters;
 /// Filters are applied server-side by the Morpho GraphQL API. Use the builder
 /// methods to chain multiple filter criteria.
 ///
-/// Note: The V2 API does not support server-side asset or curator filtering.
-/// For those, use [`VaultQueryOptionsV2::asset_symbols`](crate::VaultQueryOptionsV2::asset_symbols),
-/// [`VaultQueryOptionsV2::asset_addresses`](crate::VaultQueryOptionsV2::asset_addresses),
-/// or [`VaultQueryOptionsV2::curator_addresses`](crate::VaultQueryOptionsV2::curator_addresses)
-/// which apply client-side filtering.
+/// Note: The V2 API does not support filtering by asset symbol. For that, use
+/// [`VaultQueryOptionsV2::asset_symbols`](crate::VaultQueryOptionsV2::asset_symbols),
+/// which applies client-side filtering.
 ///
 /// # Examples
 ///
@@ -40,6 +38,12 @@ pub struct VaultFiltersV2 {
     pub addresses: Option<Vec<String>>,
     /// Filter by listed status.
     pub listed: Option<bool>,
+    /// Filter by curator addresses.
+    pub curator_addresses: Option<Vec<String>>,
+    /// Filter by owner addresses.
+    pub owner_addresses: Option<Vec<String>>,
+    /// Filter by underlying asset addresses.
+    pub asset_addresses: Option<Vec<String>>,
     /// Filter by minimum total assets in USD.
     pub total_assets_usd_gte: Option<f64>,
     /// Filter by maximum total assets in USD.
@@ -91,6 +95,36 @@ impl VaultFiltersV2 {
         self
     }
 
+    /// Filter by curator addresses.
+    pub fn curators<I, S>(mut self, curators: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.curator_addresses = Some(curators.into_iter().map(Into::into).collect());
+        self
+    }
+
+    /// Filter by owner addresses.
+    pub fn owners<I, S>(mut self, owners: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.owner_addresses = Some(owners.into_iter().map(Into::into).collect());
+        self
+    }
+
+    /// Filter by underlying asset addresses.
+    pub fn asset_addresses<I, S>(mut self, addresses: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.asset_addresses = Some(addresses.into_iter().map(Into::into).collect());
+        self
+    }
+
     /// Filter by minimum total assets in USD.
     pub fn min_total_assets_usd(mut self, usd: f64) -> Self {
         self.total_assets_usd_gte = Some(usd);
@@ -133,6 +167,9 @@ impl VaultFiltersV2 {
             chain_id_in: self.chain_ids.clone().map(|ids| ids.into_iter().collect()),
             address_in: self.addresses.clone(),
             listed: self.listed,
+            curator_address_in: self.curator_addresses.clone(),
+            owner_address_in: self.owner_addresses.clone(),
+            asset_address_in: self.asset_addresses.clone(),
             total_assets_usd_gte: self.total_assets_usd_gte,
             total_assets_usd_lte: self.total_assets_usd_lte,
             liquidity_usd_gte: self.liquidity_usd_gte,
@@ -156,6 +193,17 @@ impl VaultFiltersV2 {
             idle_assets_lte: None,
             idle_assets_usd_gte: None,
             idle_assets_usd_lte: None,
+            type_in: None,
+            performance_fee_gte: None,
+            performance_fee_lte: None,
+            management_fee_gte: None,
+            management_fee_lte: None,
+            max_rate_gte: None,
+            max_rate_lte: None,
+            creation_timestamp_gte: None,
+            creation_timestamp_lte: None,
+            performance_fee_abdicated: None,
+            management_fee_abdicated: None,
         }
     }
 }
@@ -267,5 +315,20 @@ mod tests {
         assert!(gql.chain_id_in.is_none());
         assert!(gql.address_in.is_none());
         assert!(gql.listed.is_none());
+        assert!(gql.curator_address_in.is_none());
+        assert!(gql.asset_address_in.is_none());
+    }
+
+    #[test]
+    fn test_filter_v2_address_filters() {
+        let filters = VaultFiltersV2::new()
+            .curators(["0xcurator"])
+            .owners(["0xowner"])
+            .asset_addresses(["0xasset"]);
+
+        let gql = filters.to_gql();
+        assert_eq!(gql.curator_address_in, Some(vec!["0xcurator".to_string()]));
+        assert_eq!(gql.owner_address_in, Some(vec!["0xowner".to_string()]));
+        assert_eq!(gql.asset_address_in, Some(vec!["0xasset".to_string()]));
     }
 }

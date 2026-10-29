@@ -22,8 +22,8 @@ pub struct VaultV2 {
     pub chain: NamedChain,
     /// Whether the vault is listed on the Morpho UI.
     pub listed: bool,
-    /// Whether the vault is whitelisted.
-    pub whitelisted: bool,
+    /// Vault type as reported by the API (e.g. `MorphoVault`, `FeeWrapper`).
+    pub vault_type: Option<String>,
     /// The vault's underlying asset.
     pub asset: Asset,
     /// The curator's address.
@@ -36,30 +36,68 @@ pub struct VaultV2 {
     pub total_assets_usd: Option<f64>,
     /// Total supply of vault shares.
     pub total_supply: U256,
+    /// Assets held idle in the vault (not allocated to any adapter).
+    pub idle_assets: U256,
+    /// Idle assets in USD.
+    pub idle_assets_usd: Option<f64>,
     /// Current share price.
     pub share_price: Option<f64>,
     /// Performance fee (as a fraction).
     pub performance_fee: Option<f64>,
     /// Management fee (as a fraction).
     pub management_fee: Option<f64>,
-    /// Average APY.
-    pub avg_apy: Option<f64>,
+    /// Maximum APY the vault is allowed to accrue (derived from `maxRate`).
+    pub max_apy: Option<f64>,
     /// Average net APY after fees.
     pub avg_net_apy: Option<f64>,
     /// Current APY.
     pub apy: Option<f64>,
     /// Current net APY.
     pub net_apy: Option<f64>,
+    /// Current net APY excluding rewards.
+    pub net_apy_excluding_rewards: Option<f64>,
     /// Liquidity available.
     pub liquidity: U256,
     /// Liquidity in USD.
     pub liquidity_usd: Option<f64>,
+    /// Liquidity that can be pulled out of adapters via `forceDeallocate` (at a penalty).
+    pub force_deallocatable_liquidity: U256,
+    /// Adapter used to serve deposits and withdrawals, if one is set.
+    pub liquidity_adapter: Option<Address>,
+    /// Gate contracts restricting who can send/receive shares and assets.
+    pub gates: VaultV2Gates,
     /// Vault adapters.
     pub adapters: Vec<VaultAdapter>,
     /// Vault rewards.
     pub rewards: Vec<VaultReward>,
     /// Vault warnings.
     pub warnings: Vec<VaultV2Warning>,
+}
+
+/// Gate contracts configured on a V2 vault.
+///
+/// A gate is a contract the vault consults before letting an account move shares or
+/// assets in a given direction. `None` means the direction is ungated.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VaultV2Gates {
+    /// Gate checked when an account receives shares (e.g. on deposit).
+    pub receive_shares: Option<Address>,
+    /// Gate checked when an account sends shares (e.g. on withdraw or transfer).
+    pub send_shares: Option<Address>,
+    /// Gate checked when an account receives assets (e.g. on withdraw).
+    pub receive_assets: Option<Address>,
+    /// Gate checked when an account sends assets (e.g. on deposit).
+    pub send_assets: Option<Address>,
+}
+
+impl VaultV2Gates {
+    /// Returns whether any gate is configured.
+    pub fn is_gated(&self) -> bool {
+        self.receive_shares.is_some()
+            || self.send_shares.is_some()
+            || self.receive_assets.is_some()
+            || self.send_assets.is_some()
+    }
 }
 
 /// Market state data needed for simulation.
@@ -107,7 +145,7 @@ pub struct MetaMorphoAllocation {
     pub supply_assets: U256,
     /// Supply cap for this market.
     pub supply_cap: U256,
-    /// Whether this market is enabled.
+    /// Whether this market is enabled (derived: enabled markets are in the withdraw queue).
     pub enabled: bool,
     /// Position in the supply queue.
     pub supply_queue_index: Option<i32>,
@@ -132,6 +170,11 @@ pub enum VaultAdapterData {
         /// Allocations to underlying markets.
         allocations: Vec<MetaMorphoAllocation>,
     },
+    /// Adapter allocating into another V2 vault.
+    MorphoVaultV2 {
+        /// Address of the V2 vault this adapter deposits into.
+        inner_vault: Address,
+    },
 }
 
 /// Vault adapter configuration.
@@ -147,6 +190,8 @@ pub struct VaultAdapter {
     pub assets: U256,
     /// Assets held in USD.
     pub assets_usd: Option<f64>,
+    /// Penalty charged on `forceDeallocate` through this adapter (WAD-scaled).
+    pub force_deallocate_penalty: U256,
     /// Adapter-specific data for simulation.
     pub data: Option<VaultAdapterData>,
 }
@@ -160,8 +205,6 @@ pub struct VaultReward {
     pub asset_symbol: String,
     /// Supply APR from rewards.
     pub supply_apr: Option<f64>,
-    /// Yearly supply tokens.
-    pub yearly_supply_tokens: Option<f64>,
 }
 
 /// V2 vault warning.
@@ -177,8 +220,8 @@ impl VaultV2 {
     /// Convert GraphQL response fields into a [`VaultV2`].
     ///
     /// Parses hex string fields (`address`, `curator`, `owner`) into their typed
-    /// representations and bigint strings (`total_assets`, `total_supply`, `liquidity`)
-    /// into [`U256`]. Returns `None` if the address is invalid or the chain ID is
+    /// representations and bigint strings (`total_assets`, `total_supply`, `idle_assets`,
+    /// `liquidity`, `force_deallocatable_liquidity`) into [`U256`]. Returns `None` if the address is invalid or the chain ID is
     /// unsupported.
     #[allow(clippy::too_many_arguments)]
     pub fn from_gql(
@@ -187,22 +230,28 @@ impl VaultV2 {
         symbol: String,
         chain_id: i64,
         listed: bool,
-        whitelisted: bool,
+        vault_type: Option<String>,
         asset: Asset,
         curator: Option<&str>,
         owner: Option<&str>,
         total_assets: &str,
         total_assets_usd: Option<f64>,
         total_supply: &str,
+        idle_assets: &str,
+        idle_assets_usd: Option<f64>,
         share_price: Option<f64>,
         performance_fee: Option<f64>,
         management_fee: Option<f64>,
-        avg_apy: Option<f64>,
+        max_apy: Option<f64>,
         avg_net_apy: Option<f64>,
         apy: Option<f64>,
         net_apy: Option<f64>,
+        net_apy_excluding_rewards: Option<f64>,
         liquidity: &str,
         liquidity_usd: Option<f64>,
+        force_deallocatable_liquidity: &str,
+        liquidity_adapter: Option<&str>,
+        gates: VaultV2Gates,
         adapters: Vec<VaultAdapter>,
         rewards: Vec<VaultReward>,
         warnings: Vec<VaultV2Warning>,
@@ -213,22 +262,29 @@ impl VaultV2 {
             symbol,
             chain: chain_from_id(chain_id)?,
             listed,
-            whitelisted,
+            vault_type,
             asset,
             curator: curator.and_then(parse_address),
             owner: owner.and_then(parse_address),
             total_assets: parse_bigint(total_assets)?,
             total_assets_usd,
             total_supply: parse_bigint(total_supply)?,
+            idle_assets: parse_bigint(idle_assets).unwrap_or(U256::ZERO),
+            idle_assets_usd,
             share_price,
             performance_fee,
             management_fee,
-            avg_apy,
+            max_apy,
             avg_net_apy,
             apy,
             net_apy,
+            net_apy_excluding_rewards,
             liquidity: parse_bigint(liquidity).unwrap_or(U256::ZERO),
             liquidity_usd,
+            force_deallocatable_liquidity: parse_bigint(force_deallocatable_liquidity)
+                .unwrap_or(U256::ZERO),
+            liquidity_adapter: liquidity_adapter.and_then(parse_address),
+            gates,
             adapters,
             rewards,
             warnings,
@@ -239,15 +295,16 @@ impl VaultV2 {
 impl VaultAdapter {
     /// Convert GraphQL response fields into a [`VaultAdapter`].
     ///
-    /// Parses the hex `address` string into an [`Address`] and the `assets` bigint
-    /// string into [`U256`] (defaulting to zero on parse failure). Returns `None`
-    /// if the address is invalid.
+    /// Parses the hex `address` string into an [`Address`] and the `assets` and
+    /// `force_deallocate_penalty` bigint strings into [`U256`] (defaulting to zero on
+    /// parse failure). Returns `None` if the address is invalid.
     pub fn from_gql(
         id: String,
         address: &str,
         adapter_type: String,
         assets: &str,
         assets_usd: Option<f64>,
+        force_deallocate_penalty: &str,
         data: Option<VaultAdapterData>,
     ) -> Option<Self> {
         Some(VaultAdapter {
@@ -256,6 +313,7 @@ impl VaultAdapter {
             adapter_type,
             assets: parse_bigint(assets).unwrap_or(U256::ZERO),
             assets_usd,
+            force_deallocate_penalty: parse_bigint(force_deallocate_penalty).unwrap_or(U256::ZERO),
             data,
         })
     }
@@ -270,13 +328,11 @@ impl VaultReward {
         asset_address: &str,
         asset_symbol: String,
         supply_apr: Option<f64>,
-        yearly_supply_tokens: Option<f64>,
     ) -> Option<Self> {
         Some(VaultReward {
             asset_address: parse_address(asset_address)?,
             asset_symbol,
             supply_apr,
-            yearly_supply_tokens,
         })
     }
 }
@@ -307,10 +363,6 @@ impl Vault for VaultV2 {
 
     fn listed(&self) -> bool {
         self.listed
-    }
-
-    fn whitelisted(&self) -> bool {
-        self.whitelisted
     }
 
     fn asset(&self) -> &super::asset::Asset {
@@ -481,6 +533,7 @@ mod tests {
             "MetaMorpho".to_string(),
             "1000000000000000000",
             Some(1000.0),
+            "0",
             None,
         )
         .unwrap();
@@ -495,7 +548,6 @@ mod tests {
             "0x1234567890123456789012345678901234567890",
             "MORPHO".to_string(),
             Some(0.05),
-            Some(1000.0),
         )
         .unwrap();
         assert_eq!(reward.asset_symbol, "MORPHO");

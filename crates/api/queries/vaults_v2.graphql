@@ -1,3 +1,146 @@
+# Fragments for shared field selections
+fragment MarketStateFields on MarketState {
+  supplyAssets
+  borrowAssets
+  supplyShares
+  borrowShares
+  timestamp
+  fee
+  rateAtTarget
+  price
+}
+
+fragment MarketFields on Market {
+  marketId
+  lltv
+  state {
+    ...MarketStateFields
+  }
+}
+
+fragment GateFields on VaultV2SelectorAddressConfig {
+  address
+}
+
+fragment VaultV2Fields on VaultV2 {
+  address
+  name
+  symbol
+  listed
+  type
+  creationTimestamp
+  chain {
+    id
+    network
+  }
+  asset {
+    address
+    symbol
+    decimals
+    name
+    price {
+      usd
+    }
+  }
+  curator {
+    address
+  }
+  owner {
+    address
+  }
+  totalAssets
+  totalAssetsUsd
+  totalSupply
+  idleAssets
+  idleAssetsUsd
+  sharePrice
+  performanceFee
+  managementFee
+  maxApy
+  avgNetApy
+  apy
+  netApy
+  netApyExcludingRewards
+  liquidity
+  liquidityUsd
+  forceDeallocatableLiquidity
+  liquidityAdapter {
+    __typename
+    address
+  }
+  gatesConfig {
+    receiveSharesGate {
+      ...GateFields
+    }
+    sendSharesGate {
+      ...GateFields
+    }
+    receiveAssetsGate {
+      ...GateFields
+    }
+    sendAssetsGate {
+      ...GateFields
+    }
+  }
+  # Bounded explicitly: nested pagination multiplies query complexity (API cap: 1M).
+  adapters(first: 5) {
+    items {
+      __typename
+      id
+      address
+      type
+      assets
+      assetsUsd
+      forceDeallocatePenalty
+      ... on MorphoMarketV1Adapter {
+        positions(first: 50) {
+          items {
+            state {
+              supplyAssets
+              supplyShares
+            }
+            market {
+              ...MarketFields
+            }
+          }
+        }
+      }
+      ... on MetaMorphoAdapter {
+        metaMorpho {
+          address
+          state {
+            allocation {
+              supplyAssets
+              supplyCap
+              supplyQueueIndex
+              withdrawQueueIndex
+              market {
+                ...MarketFields
+              }
+            }
+          }
+        }
+      }
+      ... on MorphoVaultV2Adapter {
+        innerVault {
+          address
+        }
+      }
+    }
+  }
+  rewards {
+    asset {
+      address
+      symbol
+    }
+    supplyApr
+  }
+  warnings {
+    type
+    level
+  }
+}
+
 query GetVaultsV2(
   $first: Int
   $skip: Int
@@ -7,112 +150,7 @@ query GetVaultsV2(
 ) {
   vaultV2s(first: $first, skip: $skip, where: $where, orderBy: $orderBy, orderDirection: $orderDirection) {
     items {
-      id
-      address
-      name
-      symbol
-      listed
-      whitelisted
-      chain {
-        id
-        network
-      }
-      asset {
-        address
-        symbol
-        decimals
-        name
-        priceUsd
-      }
-      curator {
-        address
-      }
-      owner {
-        address
-      }
-      totalAssets
-      totalAssetsUsd
-      totalSupply
-      sharePrice
-      performanceFee
-      managementFee
-      avgApy
-      avgNetApy
-      apy
-      netApy
-      liquidity
-      liquidityUsd
-      adapters {
-        items {
-          __typename
-          id
-          address
-          type
-          assets
-          assetsUsd
-          ... on MorphoMarketV1Adapter {
-            positions {
-              items {
-                supplyAssets
-                supplyShares
-                market {
-                  uniqueKey
-                  lltv
-                  state {
-                    supplyAssets
-                    borrowAssets
-                    supplyShares
-                    borrowShares
-                    timestamp
-                    fee
-                    rateAtTarget
-                    price
-                  }
-                }
-              }
-            }
-          }
-          ... on MetaMorphoAdapter {
-            metaMorpho {
-              state {
-                allocation {
-                  supplyAssets
-                  supplyCap
-                  enabled
-                  supplyQueueIndex
-                  withdrawQueueIndex
-                  market {
-                    uniqueKey
-                    lltv
-                    state {
-                      supplyAssets
-                      borrowAssets
-                      supplyShares
-                      borrowShares
-                      timestamp
-                      fee
-                      rateAtTarget
-                      price
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      rewards {
-        asset {
-          address
-          symbol
-        }
-        supplyApr
-        yearlySupplyTokens
-      }
-      warnings {
-        type
-        level
-      }
+      ...VaultV2Fields
     }
     pageInfo {
       count
@@ -123,111 +161,6 @@ query GetVaultsV2(
 
 query GetVaultV2ByAddress($address: String!, $chainId: Int!) {
   vaultV2ByAddress(address: $address, chainId: $chainId) {
-    id
-    address
-    name
-    symbol
-    listed
-    whitelisted
-    chain {
-      id
-      network
-    }
-    asset {
-      address
-      symbol
-      decimals
-      name
-      priceUsd
-    }
-    curator {
-      address
-    }
-    owner {
-      address
-    }
-    totalAssets
-    totalAssetsUsd
-    totalSupply
-    sharePrice
-    performanceFee
-    managementFee
-    avgApy
-    avgNetApy
-    apy
-    netApy
-    liquidity
-    liquidityUsd
-    adapters {
-      items {
-        __typename
-        id
-        address
-        type
-        assets
-        assetsUsd
-        ... on MorphoMarketV1Adapter {
-          positions {
-            items {
-              supplyAssets
-              supplyShares
-              market {
-                uniqueKey
-                lltv
-                state {
-                  supplyAssets
-                  borrowAssets
-                  supplyShares
-                  borrowShares
-                  timestamp
-                  fee
-                  rateAtTarget
-                  price
-                }
-              }
-            }
-          }
-        }
-        ... on MetaMorphoAdapter {
-          metaMorpho {
-            state {
-              allocation {
-                supplyAssets
-                supplyCap
-                enabled
-                supplyQueueIndex
-                withdrawQueueIndex
-                market {
-                  uniqueKey
-                  lltv
-                  state {
-                    supplyAssets
-                    borrowAssets
-                    supplyShares
-                    borrowShares
-                    timestamp
-                    fee
-                    rateAtTarget
-                    price
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    rewards {
-      asset {
-        address
-        symbol
-      }
-      supplyApr
-      yearlySupplyTokens
-    }
-    warnings {
-      type
-      level
-    }
+    ...VaultV2Fields
   }
 }

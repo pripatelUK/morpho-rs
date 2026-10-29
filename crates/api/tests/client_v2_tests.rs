@@ -5,7 +5,8 @@ mod helpers;
 use alloy_primitives::U256;
 use helpers::{client_config_with_mock, mock_graphql_response, start_mock_server};
 use morpho_rs_api::{
-    NamedChain, OrderDirection, VaultFiltersV2, VaultOrderByV2, VaultQueryOptionsV2, VaultV2Client,
+    NamedChain, OrderDirection, VaultAdapterData, VaultFiltersV2, VaultOrderByV2,
+    VaultQueryOptionsV2, VaultV2Client,
 };
 
 #[tokio::test]
@@ -38,13 +39,11 @@ async fn test_get_vaults_v2_multiple() {
     assert_eq!(vault1.symbol, "tv2USDC");
     assert_eq!(vault1.chain, NamedChain::Mainnet);
     assert!(vault1.listed);
-    assert!(vault1.whitelisted);
     assert_eq!(vault1.asset.symbol, "USDC");
     assert_eq!(vault1.total_assets, U256::from(2_000_000_000_000u64));
     assert_eq!(vault1.total_assets_usd, Some(2_000_000.0));
     assert_eq!(vault1.performance_fee, Some(0.1));
     assert_eq!(vault1.management_fee, Some(0.02));
-    assert_eq!(vault1.avg_apy, Some(0.06));
     assert_eq!(vault1.avg_net_apy, Some(0.052));
     assert_eq!(vault1.liquidity, U256::from(500_000_000_000u64));
 
@@ -166,59 +165,56 @@ async fn test_get_vaults_v2_client_side_asset_filter_case_insensitive() {
     assert_eq!(vaults.len(), 2);
 }
 
+/// Return the `where` filter variables from the first GraphQL request the mock received.
+async fn first_request_filters(server: &wiremock::MockServer) -> serde_json::Value {
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    body["variables"]["where"].clone()
+}
+
 #[tokio::test]
-async fn test_get_vaults_v2_client_side_address_filter() {
+async fn test_get_vaults_v2_asset_address_filter_is_server_side() {
     let server = start_mock_server().await;
     mock_graphql_response(&server, "v2_list").await;
 
     let config = client_config_with_mock(&server);
     let client = VaultV2Client::with_config(config);
 
-    // Filter by asset address (client-side)
     let options =
         VaultQueryOptionsV2::new().asset_addresses(["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"]);
 
+    // The mock returns every vault; filtering is the server's job now.
     let vaults = client.get_vaults_with_options(options).await.unwrap();
+    assert_eq!(vaults.len(), 2);
 
-    assert_eq!(vaults.len(), 1);
-    assert_eq!(vaults[0].asset.symbol, "USDC");
+    let filters = first_request_filters(&server).await;
+    assert_eq!(
+        filters["assetAddress_in"],
+        serde_json::json!(["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"])
+    );
 }
 
 #[tokio::test]
-async fn test_get_vaults_v2_client_side_curator_filter() {
+async fn test_get_vaults_v2_curator_filter_is_server_side() {
     let server = start_mock_server().await;
     mock_graphql_response(&server, "v2_list").await;
 
     let config = client_config_with_mock(&server);
     let client = VaultV2Client::with_config(config);
 
-    // Filter to only vaults with a specific curator (from fixture)
     let options = VaultQueryOptionsV2::new()
+        .filters(VaultFiltersV2::new().chain(NamedChain::Mainnet))
         .curator_addresses(["0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e"]);
 
-    let vaults = client.get_vaults_with_options(options).await.unwrap();
+    client.get_vaults_with_options(options).await.unwrap();
 
-    // Should filter to only the vault with matching curator
-    assert_eq!(vaults.len(), 1);
-    assert_eq!(vaults[0].name, "Test V2 USDC Vault");
-}
-
-#[tokio::test]
-async fn test_get_vaults_v2_client_side_curator_filter_case_insensitive() {
-    let server = start_mock_server().await;
-    mock_graphql_response(&server, "v2_list").await;
-
-    let config = client_config_with_mock(&server);
-    let client = VaultV2Client::with_config(config);
-
-    // Filter with different case
-    let options = VaultQueryOptionsV2::new()
-        .curator_addresses(["0xca11ab1eca11ab1eca11ab1eca11ab1eca11ab1e"]);
-
-    let vaults = client.get_vaults_with_options(options).await.unwrap();
-
-    assert_eq!(vaults.len(), 1);
-    assert_eq!(vaults[0].name, "Test V2 USDC Vault");
+    let filters = first_request_filters(&server).await;
+    assert_eq!(
+        filters["curatorAddress_in"],
+        serde_json::json!(["0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e"])
+    );
+    // Explicit filters are kept alongside the merged curator filter.
+    assert_eq!(filters["chainId_in"], serde_json::json!([1]));
 }
 
 #[tokio::test]
@@ -229,29 +225,34 @@ async fn test_get_vaults_v2_by_curator() {
     let config = client_config_with_mock(&server);
     let client = VaultV2Client::with_config(config);
 
-    let vaults = client
-        .get_vaults_by_curator("0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e", None)
+    client
+        .get_vaults_by_curator("0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e", Some(NamedChain::Base))
         .await
         .unwrap();
 
-    assert_eq!(vaults.len(), 1);
-    assert_eq!(vaults[0].name, "Test V2 USDC Vault");
+    let filters = first_request_filters(&server).await;
+    assert_eq!(
+        filters["curatorAddress_in"],
+        serde_json::json!(["0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e"])
+    );
+    assert_eq!(filters["chainId_in"], serde_json::json!([8453]));
 }
 
 #[tokio::test]
-async fn test_get_vaults_v2_by_curator_no_match() {
+async fn test_get_vaults_v2_page_size_is_capped() {
     let server = start_mock_server().await;
     mock_graphql_response(&server, "v2_list").await;
 
     let config = client_config_with_mock(&server);
     let client = VaultV2Client::with_config(config);
 
-    let vaults = client
-        .get_vaults_by_curator("0x0000000000000000000000000000000000000000", None)
-        .await
-        .unwrap();
+    client.get_vaults(None).await.unwrap();
 
-    assert!(vaults.is_empty());
+    // Default page size is 100, but V2 list queries are capped to stay under the
+    // API's query-complexity limit.
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(body["variables"]["first"], serde_json::json!(20));
 }
 
 #[tokio::test]
@@ -264,6 +265,52 @@ async fn test_get_top_vaults_v2_by_apy() {
 
     let vaults = client.get_top_vaults_by_apy(5, None).await.unwrap();
     assert_eq!(vaults.len(), 2);
+}
+
+#[tokio::test]
+async fn test_get_vault_v2_fee_wrapper_with_gates() {
+    let server = start_mock_server().await;
+    mock_graphql_response(&server, "v2_info_fee_wrapper").await;
+
+    let config = client_config_with_mock(&server);
+    let client = VaultV2Client::with_config(config);
+
+    let vault = client
+        .get_vault("0xABCdef1234567890ABCdef1234567890ABCdef12", NamedChain::Mainnet)
+        .await
+        .unwrap();
+
+    assert_eq!(vault.vault_type.as_deref(), Some("FeeWrapper"));
+    assert_eq!(vault.idle_assets, U256::from(250_000_000u64));
+    assert_eq!(vault.max_apy, Some(0.25));
+    assert_eq!(vault.force_deallocatable_liquidity, U256::from(1_000_000_000u64));
+    assert_eq!(
+        vault.liquidity_adapter,
+        Some("0xADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9ADA9".parse().unwrap())
+    );
+
+    assert!(vault.gates.is_gated());
+    assert_eq!(
+        vault.gates.receive_shares,
+        Some("0x6A7E6A7E6A7E6A7E6A7E6A7E6A7E6A7E6A7E6A7E".parse().unwrap())
+    );
+    assert_eq!(vault.gates.send_shares, None);
+    assert_eq!(vault.gates.receive_assets, None);
+    assert_eq!(
+        vault.gates.send_assets,
+        Some("0x5E2D5E2D5E2D5E2D5E2D5E2D5E2D5E2D5E2D5E2D".parse().unwrap())
+    );
+
+    assert_eq!(vault.adapters.len(), 1);
+    let adapter = &vault.adapters[0];
+    assert_eq!(adapter.adapter_type, "MorphoVaultV2");
+    assert_eq!(adapter.force_deallocate_penalty, U256::from(10_000_000_000_000_000u64));
+    assert_eq!(
+        adapter.data,
+        Some(VaultAdapterData::MorphoVaultV2 {
+            inner_vault: "0x1111111111111111111111111111111111111111".parse().unwrap(),
+        })
+    );
 }
 
 #[tokio::test]
@@ -293,7 +340,7 @@ async fn test_get_whitelisted_vaults_v2() {
 
     assert_eq!(vaults.len(), 2);
     for vault in &vaults {
-        assert!(vault.whitelisted);
+        assert!(vault.listed);
     }
 }
 
@@ -335,13 +382,14 @@ async fn test_v2_options_has_client_filter() {
     let options_with_symbol = VaultQueryOptionsV2::new().asset_symbols(["USDC"]);
     assert!(options_with_symbol.has_client_filter());
 
+    // Asset address and curator filters are applied server-side.
     let options_with_address =
         VaultQueryOptionsV2::new().asset_addresses(["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"]);
-    assert!(options_with_address.has_client_filter());
+    assert!(!options_with_address.has_client_filter());
 
     let options_with_curator =
         VaultQueryOptionsV2::new().curator_addresses(["0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e"]);
-    assert!(options_with_curator.has_client_filter());
+    assert!(!options_with_curator.has_client_filter());
 }
 
 #[tokio::test]
@@ -366,7 +414,6 @@ async fn test_vault_v2_trait_implementation() {
     assert_eq!(vault.symbol(), "tv2USDC");
     assert_eq!(vault.chain(), NamedChain::Mainnet);
     assert!(vault.listed());
-    assert!(vault.whitelisted());
     assert_eq!(vault.asset().symbol, "USDC");
     assert_eq!(vault.total_assets(), U256::from(2_000_000_000_000u64));
     assert_eq!(vault.total_assets_usd(), Some(2_000_000.0));

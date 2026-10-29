@@ -176,6 +176,12 @@ just clippy         # cargo clippy
 just check          # cargo check
 ```
 
+### Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md). 0.9.0 contains breaking changes to `morpho-rs-api` types
+to match the current Morpho GraphQL API; the changelog lists each removed field and its
+replacement.
+
 ### Lint Policy
 
 The workspace enforces strict clippy lints via `Cargo.toml`:

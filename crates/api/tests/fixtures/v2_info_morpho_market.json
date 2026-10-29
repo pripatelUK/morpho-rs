@@ -1,19 +1,17 @@
 {
   "data": {
     "vaultV2ByAddress": {
-      "id": "vault-v2-morpho-market",
       "address": "0xdef1234567890ABCdef1234567890ABCdef12345",
       "name": "Morpho Market USDC Vault",
       "symbol": "mmktUSDC",
       "chain": { "id": 1, "network": "ETHEREUM" },
       "listed": true,
-      "whitelisted": true,
       "asset": {
         "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
         "symbol": "USDC",
         "name": "USD Coin",
         "decimals": 6,
-        "priceUsd": 1.0
+        "price": { "usd": 1.0 }
       },
       "curator": { "address": "0xCurator234567890123456789012345678901234" },
       "owner": { "address": "0xOwner23456789012345678901234567890123456" },
@@ -23,7 +21,6 @@
       "sharePrice": 1.0,
       "performanceFee": 0.15,
       "managementFee": 0.01,
-      "avgApy": 0.055,
       "avgNetApy": 0.045,
       "apy": 0.058,
       "netApy": 0.048,
@@ -41,10 +38,7 @@
             "positions": {
               "items": [
                 {
-                  "supplyAssets": "2000000000000",
-                  "supplyShares": "2000000000000000000000",
                   "market": {
-                    "uniqueKey": "0x3333333333333333333333333333333333333333333333333333333333333333",
                     "lltv": "850000000000000000",
                     "state": {
                       "timestamp": "1700000000",
@@ -55,14 +49,13 @@
                       "fee": 0.0,
                       "rateAtTarget": "90000000000000000",
                       "price": "2800000000"
-                    }
-                  }
+                    },
+                    "marketId": "0x3333333333333333333333333333333333333333333333333333333333333333"
+                  },
+                  "state": { "supplyAssets": "2000000000000", "supplyShares": "2000000000000000000000" }
                 },
                 {
-                  "supplyAssets": "1000000000000",
-                  "supplyShares": "1000000000000000000000",
                   "market": {
-                    "uniqueKey": "0x4444444444444444444444444444444444444444444444444444444444444444",
                     "lltv": "800000000000000000",
                     "state": {
                       "timestamp": "1700000000",
@@ -73,21 +66,30 @@
                       "fee": 0.03,
                       "rateAtTarget": "70000000000000000",
                       "price": "3100000000"
-                    }
-                  }
+                    },
+                    "marketId": "0x4444444444444444444444444444444444444444444444444444444444444444"
+                  },
+                  "state": { "supplyAssets": "1000000000000", "supplyShares": "1000000000000000000000" }
                 }
               ]
-            }
+            },
+            "forceDeallocatePenalty": "0"
           }
         ]
       },
       "rewards": [],
       "warnings": [
-        {
-          "type": "LOW_LIQUIDITY",
-          "level": "Yellow"
-        }
-      ]
+        { "type": "LOW_LIQUIDITY", "level": "Yellow" }
+      ],
+      "type": "MorphoVault",
+      "creationTimestamp": "1700000000",
+      "idleAssets": "0",
+      "idleAssetsUsd": 0.0,
+      "maxApy": 0.5,
+      "netApyExcludingRewards": 0.048,
+      "forceDeallocatableLiquidity": "0",
+      "liquidityAdapter": null,
+      "gatesConfig": null
     }
   }
 }

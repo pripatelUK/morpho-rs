@@ -6,10 +6,10 @@
 //!
 //! - **[`VaultFiltersV1`]** / **[`VaultFiltersV2`]** — server-side filters sent to the GraphQL API
 //! - **[`VaultQueryOptionsV1`]** / **[`VaultQueryOptionsV2`]** — combine filters with ordering,
-//!   pagination, and (for V2) client-side filtering
+//!   pagination, and (for V2) client-side asset symbol filtering
 //!
-//! V1 supports server-side asset and curator filtering. V2 does not — those filters are applied
-//! client-side via [`VaultQueryOptionsV2`].
+//! Both V1 and V2 support server-side asset address and curator filtering. V2 does not support
+//! filtering by asset symbol; that is applied client-side via [`VaultQueryOptionsV2`].
 //!
 //! # Common Query Patterns
 //!
@@ -81,7 +81,7 @@
 //! // All whitelisted V2 vaults on Base
 //! let vaults = client.api().v2.get_whitelisted_vaults(Some(NamedChain::Base)).await?;
 //!
-//! // V2 vaults by asset (client-side filtering)
+//! // V2 vaults by asset symbol (client-side filtering)
 //! let vaults = client.api().v2.get_vaults_by_asset("WETH", Some(NamedChain::Mainnet)).await?;
 //! # Ok(())
 //! # }

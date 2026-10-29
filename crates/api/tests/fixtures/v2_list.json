@@ -3,19 +3,17 @@
     "vaultV2s": {
       "items": [
         {
-          "id": "vault-v2-1",
           "address": "0xABCdef1234567890ABCdef1234567890ABCdef12",
           "name": "Test V2 USDC Vault",
           "symbol": "tv2USDC",
           "chain": { "id": 1, "network": "ETHEREUM" },
           "listed": true,
-          "whitelisted": true,
           "asset": {
             "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
             "symbol": "USDC",
             "name": "USD Coin",
             "decimals": 6,
-            "priceUsd": 1.0
+            "price": { "usd": 1.0 }
           },
           "curator": { "address": "0xCA11ab1eCA11ab1eCA11ab1eCA11ab1eCA11ab1e" },
           "owner": { "address": "0x0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B" },
@@ -25,30 +23,38 @@
           "sharePrice": 1.0,
           "performanceFee": 0.1,
           "managementFee": 0.02,
-          "avgApy": 0.06,
           "avgNetApy": 0.052,
           "apy": 0.065,
           "netApy": 0.057,
           "liquidity": "500000000000",
           "liquidityUsd": 500000.0,
-          "adapters": { "items": [] },
+          "adapters": {
+            "items": []
+          },
           "rewards": [],
-          "warnings": []
+          "warnings": [],
+          "type": "MorphoVault",
+          "creationTimestamp": "1700000000",
+          "idleAssets": "0",
+          "idleAssetsUsd": 0.0,
+          "maxApy": 0.5,
+          "netApyExcludingRewards": 0.057,
+          "forceDeallocatableLiquidity": "0",
+          "liquidityAdapter": null,
+          "gatesConfig": null
         },
         {
-          "id": "vault-v2-2",
           "address": "0xdef1234567890ABCdef1234567890ABCdef12345",
           "name": "Test V2 WETH Vault",
           "symbol": "tv2WETH",
           "chain": { "id": 1, "network": "ETHEREUM" },
           "listed": true,
-          "whitelisted": true,
           "asset": {
             "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
             "symbol": "WETH",
             "name": "Wrapped Ether",
             "decimals": 18,
-            "priceUsd": 3000.0
+            "price": { "usd": 3000.0 }
           },
           "curator": { "address": "0xDA0DA0DA0DA0DA0DA0DA0DA0DA0DA0DA0DA0DA0D" },
           "owner": { "address": "0x1C1C1C1C1C1C1C1C1C1C1C1C1C1C1C1C1C1C1C1C" },
@@ -58,21 +64,28 @@
           "sharePrice": 1.0,
           "performanceFee": 0.15,
           "managementFee": 0.01,
-          "avgApy": 0.04,
           "avgNetApy": 0.033,
           "apy": 0.042,
           "netApy": 0.035,
           "liquidity": "50000000000000000000",
           "liquidityUsd": 150000.0,
-          "adapters": { "items": [] },
+          "adapters": {
+            "items": []
+          },
           "rewards": [],
-          "warnings": []
+          "warnings": [],
+          "type": "MorphoVault",
+          "creationTimestamp": "1700000000",
+          "idleAssets": "0",
+          "idleAssetsUsd": 0.0,
+          "maxApy": 0.5,
+          "netApyExcludingRewards": 0.035,
+          "forceDeallocatableLiquidity": "0",
+          "liquidityAdapter": null,
+          "gatesConfig": null
         }
       ],
-      "pageInfo": {
-        "count": 2,
-        "countTotal": 2
-      }
+      "pageInfo": { "count": 2, "countTotal": 2 }
     }
   }
 }
