@@ -1,3 +1,7 @@
 /target/
 **/target/
 .envrc
+
+# Node dependencies and generated output of tools/
+tools/node_modules/
+tools/vault-history/out/

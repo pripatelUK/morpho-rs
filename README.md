@@ -174,7 +174,12 @@ just test-all       # All tests including E2E
 just fmt            # cargo fmt
 just clippy         # cargo clippy
 just check          # cargo check
+just update-schema     # refresh crates/api/schema/morpho.graphql from the live API
+just validate-queries  # check crates/api/queries against the live API
 ```
+
+`tools/` holds the schema scripts behind those two recipes and a pipeline that pulls daily
+history for a Vault V2 into a chartable page; see [`tools/README.md`](tools/README.md).
 
 ### Changelog
 

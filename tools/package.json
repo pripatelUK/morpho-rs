@@ -1,0 +1,10 @@
+{
+  "name": "morpho-rs-tools",
+  "private": true,
+  "description": "Node helpers for the schema and vault-history tools. Python scripts need only the standard library.",
+  "type": "commonjs",
+  "dependencies": {
+    "graphql": "16.9.0",
+    "jsdom": "24.1.3"
+  }
+}

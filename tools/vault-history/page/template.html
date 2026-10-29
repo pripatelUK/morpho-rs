@@ -1,0 +1,878 @@
+<title>Steakhouse Prime Daily Data</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a coverage strip, a field catalog, evidence charts, then the build plan. */
+:root {
+  --bg: #f6f7f8;
+  --surface: #fdfdfc;
+  --ink: #0e1116;
+  --ink-2: #4f5560;
+  --ink-3: #868b93;
+  --rule: #e2e4e8;
+  --axis: #c4c8ce;
+  --accent: #2a78d6;
+  --code-bg: #eef0f3;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --pos: #2a78d6; --neg: #e34948;
+  --good: #0ca30c; --warn: #fab219; --serious: #ec835a; --crit: #d03b3b;
+  --good-ink: #006300; --warn-ink: #8a5a00; --serious-ink: #a4441c;
+  --chip-good: rgba(12,163,12,0.10); --chip-warn: rgba(250,178,25,0.16); --chip-serious: rgba(236,131,90,0.14); --chip-info: rgba(42,120,214,0.10);
+  --font-body: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1113; --surface: #17191c; --ink: #eef0f2; --ink-2: #b9bec6; --ink-3: #868b93;
+    --rule: #2a2d31; --axis: #3a3e44; --accent: #3987e5; --code-bg: #1e2125;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+    --pos: #3987e5; --neg: #e66767;
+    --good-ink: #0ca30c; --warn-ink: #fab219; --serious-ink: #ec835a;
+    --chip-good: rgba(12,163,12,0.16); --chip-warn: rgba(250,178,25,0.14); --chip-serious: rgba(236,131,90,0.16); --chip-info: rgba(57,135,229,0.16);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1113; --surface: #17191c; --ink: #eef0f2; --ink-2: #b9bec6; --ink-3: #868b93;
+  --rule: #2a2d31; --axis: #3a3e44; --accent: #3987e5; --code-bg: #1e2125;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --pos: #3987e5; --neg: #e66767;
+  --good-ink: #0ca30c; --warn-ink: #fab219; --serious-ink: #ec835a;
+  --chip-good: rgba(12,163,12,0.16); --chip-warn: rgba(250,178,25,0.14); --chip-serious: rgba(236,131,90,0.16); --chip-info: rgba(57,135,229,0.16);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 72px;
+}
+main { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(28px, 4.2vw, 40px); font-weight: 650; line-height: 1.1; }
+h2 { font-size: 22px; font-weight: 600; }
+h3 { font-size: 15px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.mono { font-family: var(--font-mono); font-size: 0.86em; }
+.eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+.muted { color: var(--ink-2); }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+header { display: flex; flex-direction: column; gap: 14px; }
+.addr { color: var(--ink-2); word-break: break-all; }
+.lede { font-size: 17px; color: var(--ink-2); }
+
+section { display: flex; flex-direction: column; gap: 20px; }
+.section-head { display: flex; flex-direction: column; gap: 6px; }
+
+/* Coverage strip */
+.coverage { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.cov { background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cov .num { font-size: 26px; font-weight: 600; line-height: 1.1; }
+.cov .what { font-size: 13px; color: var(--ink-2); }
+@media (max-width: 760px) { .coverage { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Availability chips: status = icon + label, never color alone */
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 2px 8px 2px 6px; border-radius: 999px; white-space: nowrap; }
+.chip svg { width: 12px; height: 12px; flex: none; }
+.chip.full { background: var(--chip-good); color: var(--good-ink); }
+.chip.part { background: var(--chip-warn); color: var(--warn-ink); }
+.chip.snap { background: var(--chip-serious); color: var(--serious-ink); }
+.chip.chain { background: var(--chip-info); color: var(--accent); }
+.chip.full svg { fill: var(--good); } .chip.part svg { fill: var(--warn); } .chip.snap svg { fill: var(--serious); } .chip.chain svg { fill: var(--accent); }
+.legend-chips { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; color: var(--ink-2); }
+.legend-chips > span { display: inline-flex; align-items: center; gap: 8px; }
+
+/* Field catalog */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 14px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+th { font-size: 12px; font-weight: 500; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
+tbody tr:last-child td { border-bottom: 0; }
+tr.group td { background: var(--bg); font-weight: 600; font-size: 13px; color: var(--ink-2); padding-block: 8px; }
+td.field { font-weight: 500; min-width: 170px; }
+td.field .mono { display: block; color: var(--ink-3); font-weight: 400; margin-top: 2px; }
+td.why { color: var(--ink-2); min-width: 240px; }
+td.src { min-width: 150px; }
+td.src .note { display: block; font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+
+/* Charts */
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.chart-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 16px 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.chart-card.wide { grid-column: 1 / -1; }
+.chart-card .sub { font-size: 13px; color: var(--ink-2); }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.filter-label { font-size: 13px; color: var(--ink-2); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; padding: 2px; background: var(--bg); }
+.seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink-2); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key-line { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+.key-rect { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.plot { position: relative; width: 100%; }
+.plot svg { display: block; width: 100%; overflow: visible; }
+.plot text { font-family: var(--font-body); font-size: 11px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.plot text.end { fill: var(--ink-2); font-size: 12px; font-weight: 500; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 150px; z-index: 2; }
+.tip .date { color: var(--ink-3); margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.tip .row b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tip .row span { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+details.data { font-size: 13px; }
+details.data summary { cursor: pointer; color: var(--ink-2); width: fit-content; }
+details.data .table-wrap { margin-top: 8px; max-height: 280px; overflow: auto; }
+details.data td, details.data th { padding: 6px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Gaps */
+.gaps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.gap { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gap p { font-size: 14px; color: var(--ink-2); }
+@media (max-width: 760px) { .gaps { grid-template-columns: minmax(0, 1fr); } }
+
+/* Plan */
+.recommend { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; }
+.recommend p { color: var(--ink-2); }
+.recommend strong { color: var(--ink); }
+ol.steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+ol.steps li { counter-increment: step; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 4px 12px; }
+ol.steps li::before { content: counter(step); grid-row: 1 / span 2; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--axis); display: grid; place-items: center; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+ol.steps li p { color: var(--ink-2); font-size: 14px; }
+pre { margin: 0; background: var(--code-bg); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--ink); }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+footer { font-size: 13px; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <span class="eyebrow">Morpho Vault V2 · Ethereum · USDC</span>
+    <h1>Steakhouse Prime USDC</h1>
+    <span class="addr mono">0xbeef088055857739C12CD3765F20b7679Def0f51</span>
+    <p class="lede">Which numbers are worth keeping for this vault every day, how much history the Morpho API already holds for each, and how to collect the rest.</p>
+  </header>
+
+  <section aria-labelledby="coverage-h">
+    <div class="section-head">
+      <span class="eyebrow" id="coverage-h">History the Morpho API has today</span>
+    </div>
+    <div class="coverage" id="coverage"></div>
+  </section>
+
+  <section aria-labelledby="fields-h">
+    <div class="section-head">
+      <h2 id="fields-h">What to record each day</h2>
+      <p class="muted">Grouped by the question each number answers. The last column says whether you can backfill it from the API or have to start recording it yourself.</p>
+    </div>
+    <div class="legend-chips" id="chip-legend"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data point</th><th>Why it matters</th><th>History source</th></tr></thead>
+        <tbody id="fields"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="charts-h">
+    <div class="section-head">
+      <h2 id="charts-h">What the backfill looks like</h2>
+      <p class="muted">Real daily values pulled from the Morpho API, one point per day at 00:00 UTC. Until April this vault invested through Steakhouse USDC (V1), so the charts show both vaults together by default. Hover a chart to read values; each one has a table view underneath.</p>
+    </div>
+    <div class="filters">
+      <span class="filter-label" id="scope-label">Show</span>
+      <div class="seg" role="group" aria-labelledby="scope-label">
+        <button type="button" id="scope-comb" aria-pressed="true">V1 + V2 combined</button>
+        <button type="button" id="scope-v2" aria-pressed="false">Prime USDC (V2) only</button>
+      </div>
+    </div>
+    <div class="charts">
+      <div class="chart-card">
+        <h3 id="tvl-title"></h3>
+        <span class="sub" id="tvl-sub"></span>
+        <div class="legend" id="tvl-legend"></div>
+        <div class="plot" id="tvl-plot-comb"></div>
+        <div class="plot" id="tvl-plot-v2" hidden></div>
+        <details class="data"><summary>Show as table</summary><div class="table-wrap" id="tvl-table-comb"></div><div class="table-wrap" id="tvl-table-v2" hidden></div></details>
+      </div>
+      <div class="chart-card">
+        <h3 id="apy-title"></h3>
+        <span class="sub" id="apy-sub"></span>
+        <div class="legend" id="apy-legend"></div>
+        <div class="plot" id="apy-plot-comb"></div>
+        <div class="plot" id="apy-plot-v2" hidden></div>
+        <details class="data"><summary>Show as table</summary><div class="table-wrap" id="apy-table-comb"></div><div class="table-wrap" id="apy-table-v2" hidden></div></details>
+      </div>
+      <div class="chart-card wide">
+        <h3 id="flow-title"></h3>
+        <span class="sub" id="flow-sub"></span>
+        <div class="legend" id="flow-legend"></div>
+        <div class="plot" id="flow-plot-comb"></div>
+        <div class="plot" id="flow-plot-v2" hidden></div>
+        <details class="data"><summary>Show as table</summary><div class="table-wrap" id="flow-table-comb"></div><div class="table-wrap" id="flow-table-v2" hidden></div></details>
+      </div>
+      <div class="chart-card wide">
+        <h3 id="alloc-title"></h3>
+        <span class="sub" id="alloc-sub"></span>
+        <div class="legend" id="alloc-legend"></div>
+        <div class="plot" id="alloc-plot-comb"></div>
+        <div class="plot" id="alloc-plot-v2" hidden></div>
+        <details class="data"><summary>Show as table</summary><div class="table-wrap" id="alloc-table-comb"></div><div class="table-wrap" id="alloc-table-v2" hidden></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="gaps-h">
+    <div class="section-head">
+      <h2 id="gaps-h">Where the API history falls short</h2>
+      <p class="muted">Found while pulling the data above. Each one is a reason not to rely on the API alone.</p>
+    </div>
+    <div class="gaps">
+      <div class="gap">
+        <h3>Early allocation sits one level down</h3>
+        <p>Until 23 April 2026 the vault's MetaMorpho adapter <span class="mono">0xFc98…043C</span> held shares of Steakhouse USDC (V1), which lent to the markets. The API keeps that position and the V1 vault's per-market history, so the vault's share of each market can be rebuilt exactly, but only by joining the two. Returns in that period were also net of the V1 vault's own performance fee (5% today; the API's fee history for it has no usable points, so check it on-chain).</p>
+      </div>
+      <div class="gap">
+        <h3>No liquidity history</h3>
+        <p>Instant liquidity and force-deallocatable liquidity exist only as current values. If you care how quickly depositors could exit on a given day, you have to record it that day.</p>
+      </div>
+      <div class="gap">
+        <h3>The schema changes without notice</h3>
+        <p>Between January and October 2026 the API removed or renamed dozens of fields, which broke every query in this repo. Stored snapshots keep their meaning even when the API changes.</p>
+      </div>
+      <div class="gap">
+        <h3>Query limits shape the backfill</h3>
+        <p>APY lookbacks stop at 24 hours, list queries stop at 10,000 skipped rows, and deep queries hit a complexity cap. Longer windows have to be computed from share price, and flows have to be paged by time window.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="plan-h">
+    <div class="section-head">
+      <h2 id="plan-h">Recommended setup</h2>
+    </div>
+    <div class="recommend">
+      <p><strong>Backfill once from the API, record your own snapshot every day, and use the chain to verify and fill gaps.</strong> The API gives you a year of history in minutes, but some numbers exist there only as today's value, and its schema changes without notice. Your own daily table is the record that lasts. On-chain reads are the ground truth when the two disagree.</p>
+    </div>
+    <div class="cols">
+      <ol class="steps">
+        <li><h3>Backfill from the API</h3><p>Pull vault, market and adapter-position timeseries at <span class="mono">interval: DAY</span>, and page deposits and withdrawals in 30-day windows. This covers everything marked “Full history” above.</p></li>
+        <li><h3>Add a daily snapshot command to this repo</h3><p>A <span class="mono">morpho history snapshot</span> command reuses the existing API client and writes one row per table per day. Run it from cron or a systemd timer shortly after 00:00 UTC so days line up with the API's own points.</p></li>
+        <li><h3>Verify against the chain</h3><p>At the first block of each day, read <span class="mono">convertToAssets</span> on the vault and the adapter's position in each market through an archive RPC. The repo already has the ERC-4626 client for the first read.</p></li>
+        <li><h3>Look through nested vaults</h3><p>When an adapter holds another vault's shares, record its position in that vault and that vault's per-market allocation, then split pro rata. This rebuilds November to April for this vault and covers any future vault-in-vault adapter.</p></li>
+      </ol>
+      <pre aria-label="Proposed storage tables">-- one row per UTC day
+vault_daily(
+  day, total_assets, total_supply, share_price,
+  idle_assets, liquidity, force_dealloc_liquidity,
+  tvl_usd, api_net_apy, perf_fee, mgmt_fee
+)
+allocation_daily(
+  day, adapter, via_vault, market_id, supply_assets,
+  supply_usd, cap_absolute, cap_relative
+)
+market_daily(
+  day, market_id, supply_usd, borrow_usd,
+  utilization, supply_apy, borrow_apy, liquidity_usd
+)
+flows_daily(
+  day, deposits, withdrawals, deposit_count,
+  withdraw_count, depositors, top10_share
+)
+-- one row per change, from snapshot diffs
+config_events(
+  ts, kind, detail  -- curator, allocator, cap,
+)                   -- fee, gate, adapter changes</pre>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</main>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const rows = D.rows;
+  const DAY = 86400;
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => {
+    const n = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const h = (tag, attrs, text) => {
+    const n = document.createElement(tag);
+    if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const fmtDate = (t, opts) => new Date(t * 1000).toLocaleDateString("en-GB", Object.assign({ timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }, opts || {}));
+  const usd = (v) => {
+    const a = Math.abs(v);
+    const s = a >= 1e9 ? (a / 1e9).toFixed(2) + "B" : a >= 1e6 ? (a / 1e6).toFixed(1) + "M" : a >= 1e3 ? (a / 1e3).toFixed(0) + "K" : a.toFixed(0);
+    return (v < 0 ? "−$" : "$") + s;
+  };
+  const pct = (v, d) => v == null ? "–" : (v * 100).toFixed(d == null ? 2 : d) + "%";
+
+  // ---- Coverage strip
+  const allocRows = rows.filter((r) => r.alloc);
+  const cov = [
+    [String(rows.length), "days of vault history, since " + fmtDate(rows[0].t)],
+    [String(allocRows.length), "days of per-market allocation, via the V1 vault until " + fmtDate(D.vault.directFrom - DAY)],
+    [D.vault.flowCount.toLocaleString("en-GB"), "deposits, withdrawals and transfers"],
+    ["0", "days of liquidity history: current value only"],
+  ];
+  const covEl = document.getElementById("coverage");
+  cov.forEach(([n, w]) => {
+    const c = h("div", { class: "cov" });
+    c.appendChild(h("span", { class: "num" }, n));
+    c.appendChild(h("span", { class: "what" }, w));
+    covEl.appendChild(c);
+  });
+
+  // ---- Field catalog
+  const ICON = {
+    full: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.6 8.6 2.3 6.3l.9-.9 1.4 1.4 4.2-4.2.9.9z"/></svg>',
+    part: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1a5 5 0 1 0 0 10A5 5 0 0 0 6 1Zm0 1.5v7a3.5 3.5 0 0 1 0-7Z"/></svg>',
+    snap: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1a5 5 0 1 1 0 10A5 5 0 0 1 6 1Zm-.6 2.5v3.1l2.4 1.4.6-1-1.8-1V3.5z"/></svg>',
+    chain: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M5 3.5h2v1H5a1.5 1.5 0 0 0 0 3h2v1H5a2.5 2.5 0 0 1 0-5Zm2 2H5v1h2Zm0-2a2.5 2.5 0 0 1 0 5V7.5a1.5 1.5 0 0 0 0-3Z"/></svg>',
+  };
+  const LABEL = { full: "Full history", part: "Partial history", snap: "Record daily from now", chain: "On-chain only" };
+  const chip = (k) => {
+    const s = h("span", { class: "chip " + k });
+    s.innerHTML = ICON[k];
+    s.appendChild(document.createTextNode(LABEL[k]));
+    return s;
+  };
+  const legendEl = document.getElementById("chip-legend");
+  [["full", "backfill from the API"], ["part", "API has some of it"], ["snap", "API keeps only the current value"], ["chain", "not in the API"]].forEach(([k, t]) => {
+    const s = h("span");
+    s.appendChild(chip(k));
+    s.appendChild(document.createTextNode(t));
+    legendEl.appendChild(s);
+  });
+
+  const FIELDS = [
+    ["Returns", [
+      ["Share price", "sharePrice", "The one number every yield figure comes from. Growth in share price is what depositors actually earned.", "full", "Verify with convertToAssets on-chain"],
+      ["Realized APY, 7 and 30 days", "derived", "Smooths out daily noise. Compute it from share price rather than trusting a provider's APY definition.", "full", "Derived from share price"],
+      ["Morpho's net APY", "avgNetApy", "The figure users see in the app. Useful to compare against your own calculation.", "full", "Lookback capped at 24 hours"],
+      ["Fees and fee recipients", "performanceFee, managementFee", "A fee change moves net yield overnight. Zero today on both.", "snap", "Pending changes visible via timelock"],
+    ]],
+    ["Size and flows", [
+      ["Total assets and supply", "totalAssets, totalSupply", "How big the vault is, in USDC and in shares.", "full"],
+      ["Deposits and withdrawals", "vaultV2transactions", "Daily inflow and outflow show whether money is arriving or leaving before TVL makes it obvious.", "full", "Page in 30-day windows"],
+      ["Depositor concentration", "positions", "If a few wallets hold most shares, one exit can drain liquidity.", "snap"],
+    ]],
+    ["Exit liquidity", [
+      ["Instant liquidity", "liquidity", "How much depositors could withdraw today without forcing anything.", "snap"],
+      ["Idle assets", "idleAssets", "Cash held in the vault and not lent out.", "full"],
+      ["Force-deallocatable liquidity", "forceDeallocatableLiquidity", "What could be pulled from markets in an emergency, and at what penalty.", "snap"],
+    ]],
+    ["Where the money is lent", [
+      ["Allocation per market", "adapter positions, V1 allocation", "The vault's real risk: which collateral backs the loans it funds.", "full", "Before 24 Apr 2026, look through the V1 vault"],
+      ["Vault share of each market", "derived", "Owning half of a thin market makes the position slow to unwind.", "full", "Derived from allocation and market supply"],
+      ["Market utilization and rates", "utilization, supplyApy, borrowApy", "Explains yield moves and shows when a market is close to fully borrowed.", "full"],
+      ["Market liquidity", "liquidityAssetsUsd", "Cash left in each market. Low liquidity means withdrawals queue.", "full"],
+      ["Oracle price and bad debt", "price, badDebt", "Losses start here. Neither has a daily series in the API.", "chain", "Read oracle and market at the daily block"],
+    ]],
+    ["Governance", [
+      ["Caps per market and collateral", "caps", "Limits on how much the curator can allocate, and how they change.", "full"],
+      ["Curator, allocators, sentinels, timelocks", "allocators, sentinels, timelocks", "Who can move money and how much warning depositors get.", "snap", "Record as change events"],
+      ["Adapters added or removed", "adapters", "The April switch from the V1 vault to direct markets changed where allocation data lives.", "snap", "Record as change events"],
+      ["Warnings", "warnings", "Morpho's own flags for bad debt, oracle and liquidity problems.", "snap"],
+    ]],
+  ];
+  const tbody = document.getElementById("fields");
+  FIELDS.forEach(([group, items]) => {
+    const gr = h("tr", { class: "group" });
+    gr.appendChild(h("td", { colspan: "3" }, group));
+    tbody.appendChild(gr);
+    items.forEach(([name, api, why, src, note]) => {
+      const tr = h("tr");
+      const f = h("td", { class: "field" }, name);
+      f.appendChild(h("span", { class: "mono" }, api));
+      tr.appendChild(f);
+      tr.appendChild(h("td", { class: "why" }, why));
+      const s = h("td", { class: "src" });
+      s.appendChild(chip(src));
+      if (note) s.appendChild(h("span", { class: "note" }, note));
+      tr.appendChild(s);
+      tbody.appendChild(tr);
+    });
+  });
+
+  // ---- Chart helpers
+  function niceTicks(min, max, count) {
+    const span = max - min || Math.abs(max) || 1;
+    const raw = span / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= count) || 10 * mag;
+    const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+    const out = [];
+    for (let v = lo; v <= hi + step / 2; v += step) out.push(+v.toFixed(10));
+    return out;
+  }
+  function monthTicks(t0, t1) {
+    const out = [];
+    const d = new Date(t0 * 1000);
+    let y = d.getUTCFullYear(), m = d.getUTCMonth() + 1;
+    for (;;) {
+      if (m > 11) { m = 0; y += 1; }
+      const t = Date.UTC(y, m, 1) / 1000;
+      if (t > t1) break;
+      out.push(t);
+      m += 1;
+    }
+    return out;
+  }
+  const monthLabel = (t) => {
+    const d = new Date(t * 1000);
+    const mon = d.toLocaleDateString("en-GB", { timeZone: "UTC", month: "short" });
+    return d.getUTCMonth() === 0 ? mon + " " + d.getUTCFullYear() : mon;
+  };
+  function legend(id, items, kind) {
+    const l = document.getElementById(id);
+    items.forEach((s) => {
+      const span = h("span");
+      const key = h("i", { class: kind === "rect" ? "key-rect" : "key-line" });
+      key.style.background = css(s.color);
+      span.appendChild(key);
+      span.appendChild(document.createTextNode(s.label));
+      l.appendChild(span);
+    });
+  }
+  function table(id, headers, data) {
+    const t = h("table");
+    const tr = h("tr");
+    headers.forEach((x) => tr.appendChild(h("th", null, x)));
+    const th = h("thead"); th.appendChild(tr); t.appendChild(th);
+    const tb = h("tbody");
+    data.forEach((r) => {
+      const row = h("tr");
+      r.forEach((c) => row.appendChild(h("td", null, c)));
+      tb.appendChild(row);
+    });
+    t.appendChild(tb);
+    document.getElementById(id).appendChild(t);
+  }
+  function tooltip(plot) {
+    const tip = h("div", { class: "tip", role: "status" });
+    tip.hidden = true;
+    plot.appendChild(tip);
+    return {
+      show(x, y, date, items, w) {
+        tip.replaceChildren(h("div", { class: "date" }, date));
+        items.forEach((it) => {
+          const r = h("div", { class: "row" });
+          const lab = h("span");
+          const key = h("i", { class: "key-line" });
+          key.style.background = css(it.color);
+          lab.appendChild(key);
+          lab.appendChild(document.createTextNode(it.label));
+          r.appendChild(lab);
+          r.appendChild(h("b", null, it.value));
+          tip.appendChild(r);
+        });
+        tip.hidden = false;
+        const tw = tip.offsetWidth;
+        tip.style.left = (x + 14 + tw > w ? x - tw - 14 : x + 14) + "px";
+        tip.style.top = Math.max(0, y - 20) + "px";
+      },
+      hide() { tip.hidden = true; },
+    };
+  }
+
+  // Time-series chart: lines, a single area, or a stacked area. One y-axis only.
+  function timeChart(cfg) {
+    const plot = document.getElementById(cfg.id);
+    const tip = tooltip(plot);
+    let svg;
+    function draw() {
+      if (svg) svg.remove();
+      const W = Math.max(280, plot.clientWidth);
+      const H = cfg.height || 220;
+      const M = { l: 52, r: cfg.endLabels ? 64 : 12, t: 10, b: 26 };
+      const iw = W - M.l - M.r, ih = H - M.t - M.b;
+      const data = cfg.rows;
+      const t0 = data[0].t, t1 = data[data.length - 1].t;
+      const stacked = cfg.mode === "stacked";
+      const tops = data.map((r) => {
+        let acc = 0;
+        return cfg.series.map((s) => { const v = s.get(r); acc = stacked ? acc + (v || 0) : v; return acc; });
+      });
+      let lo = Infinity, hi = -Infinity;
+      tops.forEach((arr) => arr.forEach((v) => { if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+      if (cfg.zeroBase) lo = 0;
+      const ticks = niceTicks(lo, hi, 4);
+      const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+      const X = (t) => M.l + ((t - t0) / (t1 - t0)) * iw;
+      const Y = (v) => M.t + ih - ((v - y0) / (y1 - y0)) * ih;
+      svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": cfg.aria });
+      plot.prepend(svg);
+      ticks.forEach((v) => {
+        el("line", { x1: M.l, x2: W - M.r, y1: Y(v), y2: Y(v), stroke: css(v === y0 && cfg.zeroBase ? "--axis" : "--rule"), "stroke-width": 1 }, svg);
+        el("text", { x: M.l - 8, y: Y(v) + 4, "text-anchor": "end" }, svg).textContent = cfg.yFmt(v);
+      });
+      const mt = monthTicks(t0, t1);
+      const every = iw < 420 ? 3 : iw < 700 ? 2 : 1;
+      mt.forEach((t, i) => {
+        if (i % every) return;
+        el("text", { x: X(t), y: H - 8, "text-anchor": "middle" }, svg).textContent = monthLabel(t);
+      });
+      if (stacked) {
+        cfg.series.forEach((s, si) => {
+          let d = "";
+          data.forEach((r, i) => { d += (i ? "L" : "M") + X(r.t).toFixed(1) + "," + Y(tops[i][si]).toFixed(1); });
+          for (let i = data.length - 1; i >= 0; i--) d += "L" + X(data[i].t).toFixed(1) + "," + Y(si ? tops[i][si - 1] : y0).toFixed(1);
+          el("path", { d: d + "Z", fill: css(s.color), stroke: css("--surface"), "stroke-width": 1.5, "stroke-linejoin": "round" }, svg);
+        });
+      } else {
+        cfg.series.forEach((s, si) => {
+          let d = "", started = false;
+          data.forEach((r, i) => {
+            const v = tops[i][si];
+            if (v == null) { started = false; return; }
+            d += (started ? "L" : "M") + X(r.t).toFixed(1) + "," + Y(v).toFixed(1);
+            started = true;
+          });
+          if (cfg.mode === "area") {
+            const first = data.findIndex((r, i) => tops[i][si] != null);
+            el("path", { d: d + `L${X(t1).toFixed(1)},${Y(y0).toFixed(1)}L${X(data[first].t).toFixed(1)},${Y(y0).toFixed(1)}Z`, fill: css(s.color), "fill-opacity": 0.1, stroke: "none" }, svg);
+          }
+          el("path", { d, fill: "none", stroke: css(s.color), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+          const last = tops[tops.length - 1][si];
+          if (last != null) el("circle", { cx: X(t1), cy: Y(last), r: 4, fill: css(s.color), stroke: css("--surface"), "stroke-width": 2 }, svg);
+        });
+      }
+      if (cfg.endLabels) {
+        const last = tops[tops.length - 1];
+        const placed = [];
+        cfg.series.forEach((s, si) => {
+          const v = last[si];
+          if (v == null) return;
+          let yy;
+          if (stacked) {
+            const below = si ? last[si - 1] : y0;
+            if (Y(below) - Y(v) < 13) return; // too thin to label; legend + tooltip carry it
+            yy = (Y(v) + Y(below)) / 2 + 4;
+          } else {
+            yy = Y(v) + 4;
+          }
+          if (placed.some((p) => Math.abs(p - yy) < 13)) return;
+          placed.push(yy);
+          el("text", { x: W - M.r + 8, y: yy, class: "end" }, svg).textContent = cfg.endLabel(s, r => r, data[data.length - 1]);
+        });
+      }
+      if (cfg.marker && cfg.marker.t > t0 && cfg.marker.t < t1) {
+        const mx = X(cfg.marker.t);
+        el("line", { x1: mx, x2: mx, y1: M.t, y2: M.t + ih, stroke: css("--ink-3"), "stroke-width": 1 }, svg);
+        const lab = el("text", { x: mx + 6, y: M.t + 12, class: "end" }, svg);
+        lab.textContent = cfg.marker.label;
+        if (mx + 6 + lab.getComputedTextLength() > W - M.r) { lab.setAttribute("x", mx - 6); lab.setAttribute("text-anchor", "end"); }
+      }
+      const cross = el("line", { y1: M.t, y2: M.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" }, svg);
+      const hit = el("rect", { x: M.l, y: M.t, width: iw, height: ih, fill: "transparent", tabindex: 0 }, svg);
+      let idx = data.length - 1;
+      const show = (i) => {
+        idx = Math.max(0, Math.min(data.length - 1, i));
+        const r = data[idx];
+        const x = X(r.t);
+        cross.setAttribute("x1", x); cross.setAttribute("x2", x); cross.setAttribute("visibility", "visible");
+        const items = cfg.series.map((s) => ({ label: s.label, color: s.color, value: s.get(r) == null ? "–" : cfg.tipFmt(s.get(r)) }));
+        if (stacked) items.reverse();
+        if (cfg.tipTotal) items.push({ label: "Combined", color: "--axis", value: cfg.tipTotal(r) });
+        const date = fmtDate(r.t, { weekday: "short" }) + (cfg.tipNote ? " · " + cfg.tipNote(r) : "");
+        tip.show(x, M.t + 10, date, items, W);
+      };
+      const hide = () => { cross.setAttribute("visibility", "hidden"); tip.hide(); };
+      hit.addEventListener("pointermove", (e) => {
+        const b = svg.getBoundingClientRect();
+        const px = (e.clientX - b.left) * (W / b.width);
+        const t = t0 + ((px - M.l) / iw) * (t1 - t0);
+        let best = 0, bd = Infinity;
+        data.forEach((r, i) => { const dd = Math.abs(r.t - t); if (dd < bd) { bd = dd; best = i; } });
+        show(best);
+      });
+      hit.addEventListener("pointerleave", hide);
+      hit.addEventListener("focus", () => show(idx));
+      hit.addEventListener("blur", hide);
+      hit.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") { show(idx - 1); e.preventDefault(); }
+        if (e.key === "ArrowRight") { show(idx + 1); e.preventDefault(); }
+      });
+    }
+    draw();
+    return draw;
+  }
+
+  // Diverging weekly columns: deposits up, withdrawals down.
+  function flowChart(cfg) {
+    const plot = document.getElementById(cfg.id);
+    const tip = tooltip(plot);
+    let svg;
+    function draw() {
+      if (svg) svg.remove();
+      const W = Math.max(280, plot.clientWidth), H = 240;
+      const M = { l: 52, r: 12, t: 10, b: 26 };
+      const iw = W - M.l - M.r, ih = H - M.t - M.b;
+      const weeks = cfg.weeks;
+      const maxUp = Math.max(...weeks.map((w) => w.dep)), maxDn = Math.max(...weeks.map((w) => w.wd));
+      const ticks = niceTicks(-maxDn, maxUp, 5);
+      const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+      const Y = (v) => M.t + ih - ((v - y0) / (y1 - y0)) * ih;
+      const band = iw / weeks.length;
+      const bw = Math.max(2, Math.min(24, band * 0.62));
+      svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": cfg.aria });
+      plot.prepend(svg);
+      ticks.forEach((v) => {
+        el("line", { x1: M.l, x2: W - M.r, y1: Y(v), y2: Y(v), stroke: css(v === 0 ? "--axis" : "--rule"), "stroke-width": 1 }, svg);
+        el("text", { x: M.l - 8, y: Y(v) + 4, "text-anchor": "end" }, svg).textContent = usd(v);
+      });
+      const t0 = weeks[0].t, t1 = weeks[weeks.length - 1].t + 7 * DAY;
+      const X = (t) => M.l + ((t - t0) / (t1 - t0)) * iw;
+      const mt = monthTicks(t0, t1);
+      const every = iw < 420 ? 3 : iw < 700 ? 2 : 1;
+      mt.forEach((t, i) => { if (!(i % every)) el("text", { x: X(t), y: H - 8, "text-anchor": "middle" }, svg).textContent = monthLabel(t); });
+      const r = Math.min(4, bw / 2);
+      const col = (x, top, bottom, up) => {
+        // Rounded at the data end, square at the zero baseline.
+        const hgt = bottom - top;
+        if (hgt < 0.5) return "";
+        const rr = Math.min(r, hgt);
+        return up
+          ? `M${x},${bottom}V${top + rr}Q${x},${top} ${x + rr},${top}H${x + bw - rr}Q${x + bw},${top} ${x + bw},${top + rr}V${bottom}Z`
+          : `M${x},${top}V${bottom - rr}Q${x},${bottom} ${x + rr},${bottom}H${x + bw - rr}Q${x + bw},${bottom} ${x + bw},${bottom - rr}V${top}Z`;
+      };
+      const zero = Y(0);
+      weeks.forEach((w, i) => {
+        const x = M.l + i * band + (band - bw) / 2;
+        const g = el("g", {}, svg);
+        const up = col(x, Y(w.dep), zero - 1, true);
+        const dn = col(x, zero + 1, Y(-w.wd), false);
+        if (up) el("path", { d: up, fill: css("--pos") }, g);
+        if (dn) el("path", { d: dn, fill: css("--neg") }, g);
+        const hit = el("rect", { x: M.l + i * band, y: M.t, width: band, height: ih, fill: "transparent", tabindex: 0 }, g);
+        const show = () => {
+          g.setAttribute("opacity", "0.8");
+          tip.show(M.l + i * band + band / 2, M.t + 10, "Week of " + fmtDate(w.t), [
+            { label: "Deposits", color: "--pos", value: usd(w.dep) },
+            { label: "Withdrawals", color: "--neg", value: usd(w.wd) },
+            { label: "Net", color: "--axis", value: usd(w.dep - w.wd) },
+          ], W);
+        };
+        const hide = () => { g.removeAttribute("opacity"); tip.hide(); };
+        hit.addEventListener("pointerenter", show);
+        hit.addEventListener("pointerleave", hide);
+        hit.addEventListener("focus", show);
+        hit.addEventListener("blur", hide);
+      });
+    }
+    draw();
+    return draw;
+  }
+
+  // ---- Data shaping
+  const monthly = (list) => {
+    // first available day of each month, plus the latest day
+    const seen = new Set(), out = [];
+    list.forEach((r) => {
+      const d = new Date(r.t * 1000), k = d.getUTCFullYear() * 12 + d.getUTCMonth();
+      if (!seen.has(k)) { seen.add(k); out.push(r); }
+    });
+    if (out[out.length - 1] !== list[list.length - 1]) out.push(list[list.length - 1]);
+    return out;
+  };
+  const weeksOf = (dep, wd) => {
+    const out = [];
+    rows.forEach((r) => {
+      const wt = r.t - ((new Date(r.t * 1000).getUTCDay() + 6) % 7) * DAY; // Monday-based
+      let w = out[out.length - 1];
+      if (!w || w.t !== wt) { w = { t: wt, dep: 0, wd: 0 }; out.push(w); }
+      w.dep += dep(r); w.wd += wd(r);
+    });
+    return out;
+  };
+
+  // Every chart has a combined view and a V2-only view; one toggle switches them all.
+  const redraw = [];
+  const CHARTS = {};
+  function defineChart(key, views) {
+    CHARTS[key] = views;
+    ["comb", "v2"].forEach((scope) => {
+      const v = views[scope];
+      v.draw = v.build(key + "-plot-" + scope);
+      redraw.push(v.draw);
+      table(key + "-table-" + scope, v.table[0], v.table[1]);
+    });
+  }
+
+  // Total assets
+  const tvlRows = rows.filter((r) => r.v1 != null);
+  const tvlSeries = [
+    { label: "Prime USDC (V2)", color: "--s1", get: (r) => r.tvl },
+    { label: "Steakhouse USDC (V1)", color: "--s2", get: (r) => r.v1 },
+  ];
+  const tFirst = tvlRows[0], tLast = tvlRows[tvlRows.length - 1];
+  defineChart("tvl", {
+    comb: {
+      title: "Total assets, V1 and V2 together",
+      sub: "V1 excludes the shares V2 held in it, so nothing is counted twice. Together they went from " +
+        usd(tFirst.tvl + tFirst.v1) + " to " + usd(tLast.tvl + tLast.v1) + " while V2 grew to " + usd(tLast.tvl) + ".",
+      legend: [tvlSeries, "rect"],
+      build: (id) => timeChart({
+        id, rows: tvlRows, series: tvlSeries, mode: "stacked", zeroBase: true, yFmt: usd, tipFmt: usd,
+        endLabels: true, endLabel: (s, _, r) => usd(s.get(r)), tipTotal: (r) => usd(r.tvl + r.v1),
+        aria: "Total assets of the V2 vault and the V1 vault excluding V2's shares, stacked, per day",
+      }),
+      table: [["Date", "Prime USDC (V2)", "Steakhouse USDC (V1)", "Combined"],
+        monthly(tvlRows).map((r) => [fmtDate(r.t), usd(r.tvl), usd(r.v1), usd(r.tvl + r.v1)])],
+    },
+    v2: {
+      title: "Total assets, Prime USDC (V2)",
+      sub: "USD value of everything in the V2 vault.",
+      legend: null,
+      build: (id) => timeChart({
+        id, rows, series: [tvlSeries[0]], mode: "area", zeroBase: true, yFmt: usd, tipFmt: usd,
+        endLabels: true, endLabel: (s, _, r) => usd(r.tvl),
+        aria: "Total assets of the V2 vault in USD per day",
+      }),
+      table: [["Date", "Total assets", "Share price"], monthly(rows).map((r) => [fmtDate(r.t), usd(r.tvl), r.sp.toFixed(6)])],
+    },
+  });
+
+  // Realized yield
+  const yieldView = (getters, title, sub, aria) => {
+    const list = rows.filter((r) => getters[0](r) != null);
+    const series = [
+      { label: "7-day", color: "--s1", get: getters[0] },
+      { label: "30-day", color: "--s2", get: getters[1] },
+    ];
+    return {
+      title, sub, legend: [series, "line"],
+      build: (id) => timeChart({
+        id, rows: list, series, mode: "line", zeroBase: true, yFmt: (v) => pct(v, 1), tipFmt: (v) => pct(v),
+        endLabels: true, endLabel: (s, _, r) => pct(s.get(r), 2), aria,
+      }),
+      table: [["Date", "7-day", "30-day"], monthly(list).map((r) => [fmtDate(r.t), pct(getters[0](r)), pct(getters[1](r))])],
+    };
+  };
+  defineChart("apy", {
+    comb: yieldView([(r) => r.capy7, (r) => r.capy30], "Realized yield, V1 and V2 together",
+      "Share-price growth of both vaults, weighted by their assets and annualized over the trailing window. V1's share price is after its performance fee.",
+      "Asset-weighted realized 7-day and 30-day APY of the V1 and V2 vaults"),
+    v2: yieldView([(r) => r.apy7, (r) => r.apy30], "Realized yield, Prime USDC (V2)",
+      "Annualized from the V2 share price's growth over the trailing window.",
+      "Realized 7-day and 30-day APY of the V2 vault"),
+  });
+
+  // Deposits and withdrawals
+  const flowLegend = [[{ label: "Deposits", color: "--pos" }, { label: "Withdrawals", color: "--neg" }], "rect"];
+  const flowView = (weeks, title, sub, aria) => ({
+    title, sub, legend: flowLegend,
+    build: (id) => flowChart({ id, weeks, aria }),
+    table: [["Week of", "Deposits", "Withdrawals", "Net"], weeks.map((w) => [fmtDate(w.t), usd(w.dep), usd(w.wd), usd(w.dep - w.wd)])],
+  });
+  defineChart("flow", {
+    comb: flowView(weeksOf((r) => r.dep + (r.v1dep || 0), (r) => r.wd + (r.v1wd || 0)),
+      "Weekly deposits and withdrawals, V1 and V2 together",
+      "USDC depositors moved in (above the line) and out (below), summed per week. V2's own moves into and out of V1 are left out, since that money never left.",
+      "Weekly USDC deposits and withdrawals across the V1 and V2 vaults"),
+    v2: flowView(weeksOf((r) => r.dep, (r) => r.wd),
+      "Weekly deposits and withdrawals, Prime USDC (V2)",
+      "USDC moved in (above the line) and out (below) of the V2 vault, summed per week.",
+      "Weekly USDC deposits and withdrawals for the V2 vault"),
+  });
+
+  // Allocation by collateral. Colors follow the collateral, so a series keeps its color in both views.
+  const FAM = ["cbBTC", "WBTC", "weETH", "wstETH", "WETH"];
+  const FAM6 = FAM.concat(["Other"]);
+  const combRows = rows.filter((r) => r.comb);
+  const allocSeries = FAM.map((f, i) => ({ label: f, color: "--s" + (i + 1), get: (r) => r.alloc ? r.alloc[f] : null }));
+  const combSeries = FAM6.map((f, i) => ({ label: f, color: "--s" + (i + 1), get: (r) => r.comb ? r.comb[f] : null }));
+  defineChart("alloc", {
+    comb: {
+      title: "Allocation by collateral, V1 and V2 together",
+      sub: "Everything both vaults lend, by collateral. Before " + fmtDate(D.vault.directFrom) +
+        " V2's money sat inside V1, so it is counted once, in V1's markets. Other is mostly steakEURCV, which only V1 lends against.",
+      legend: [combSeries, "rect"],
+      build: (id) => timeChart({
+        id, rows: combRows, series: combSeries, mode: "stacked", zeroBase: true, height: 260,
+        yFmt: usd, tipFmt: usd, endLabels: true, endLabel: (s) => s.label,
+        marker: { t: D.vault.directFrom, label: "V2 lends directly from here" },
+        tipTotal: (r) => usd(FAM6.reduce((a, f) => a + r.comb[f], 0)),
+        aria: "Combined V1 and V2 allocation by collateral asset per day, stacked",
+      }),
+      table: [["Date"].concat(FAM6, ["Total"]), monthly(combRows).map((r) => {
+        const tot = FAM6.reduce((a, f) => a + r.comb[f], 0);
+        return [fmtDate(r.t)].concat(FAM6.map((f) => usd(r.comb[f]) + " (" + pct(r.comb[f] / tot, 0) + ")"), [usd(tot)]);
+      })],
+    },
+    v2: {
+      title: "Allocation by collateral, Prime USDC (V2)",
+      sub: "Until " + fmtDate(D.vault.directFrom - DAY) +
+        " the V2 vault held Steakhouse USDC (V1) shares, so those days show its pro-rata share of V1's markets.",
+      legend: [allocSeries, "rect"],
+      build: (id) => timeChart({
+        id, rows: allocRows, series: allocSeries, mode: "stacked", zeroBase: true, height: 260,
+        yFmt: usd, tipFmt: usd, endLabels: true, endLabel: (s) => s.label,
+        marker: { t: D.vault.directFrom, label: "Direct markets from here" },
+        tipNote: (r) => r.via === "v1" ? "via V1 vault" : "direct",
+        aria: "V2 vault allocation by collateral asset per day, stacked",
+      }),
+      table: [["Date", "Held via"].concat(FAM, ["Total"]), monthly(allocRows).map((r) => {
+        const tot = FAM.reduce((a, f) => a + r.alloc[f], 0);
+        return [fmtDate(r.t), r.via === "v1" ? "V1 vault" : "Direct"].concat(FAM.map((f) => usd(r.alloc[f]) + " (" + pct(r.alloc[f] / tot, 0) + ")"), [usd(tot)]);
+      })],
+    },
+  });
+
+  function setScope(scope) {
+    document.getElementById("scope-comb").setAttribute("aria-pressed", String(scope === "comb"));
+    document.getElementById("scope-v2").setAttribute("aria-pressed", String(scope === "v2"));
+    Object.keys(CHARTS).forEach((key) => {
+      ["comb", "v2"].forEach((s) => {
+        document.getElementById(key + "-plot-" + s).hidden = s !== scope;
+        document.getElementById(key + "-table-" + s).hidden = s !== scope;
+      });
+      const v = CHARTS[key][scope];
+      document.getElementById(key + "-title").textContent = v.title;
+      document.getElementById(key + "-sub").textContent = v.sub;
+      const lg = document.getElementById(key + "-legend");
+      lg.replaceChildren();
+      lg.hidden = !v.legend;
+      if (v.legend) legend(key + "-legend", v.legend[0], v.legend[1]);
+      v.draw(); // hidden plots measure zero width, so draw on show
+    });
+    try { localStorage.setItem("vault-scope", scope); } catch (e) { /* storage unavailable */ }
+  }
+  document.getElementById("scope-comb").addEventListener("click", () => setScope("comb"));
+  document.getElementById("scope-v2").addEventListener("click", () => setScope("v2"));
+  let savedScope = "comb";
+  try { savedScope = localStorage.getItem("vault-scope") === "v2" ? "v2" : "comb"; } catch (e) { /* storage unavailable */ }
+  setScope(savedScope);
+
+  document.getElementById("foot").textContent =
+    "Source: api.morpho.org GraphQL, pulled " + fmtDate(D.vault.fetchedAt) +
+    ". Daily points at 00:00 UTC. The vault was created " + fmtDate(D.vault.created) +
+    " and seeded with a dust deposit; days under $1,000 total assets are left out. Realized APY = (share price today ÷ share price N days ago)^(365/N) − 1.";
+
+  let raf;
+  const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => redraw.forEach((f) => f())); };
+  new ResizeObserver(onResize).observe(document.querySelector(".charts"));
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", onResize);
+  new MutationObserver(onResize).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+</script>

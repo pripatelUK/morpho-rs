@@ -40,3 +40,11 @@ clippy:
 # Quick check without full build
 check:
     cargo check
+
+# Refresh the GraphQL schema from the live Morpho API (needs `npm install` in tools/ once)
+update-schema:
+    node tools/schema/fetch_schema.mjs crates/api/schema/morpho.graphql
+
+# Check every query in crates/api/queries against the live API (schema errors + complexity)
+validate-queries:
+    for f in crates/api/queries/*.graphql; do echo "== $f"; python3 -I tools/schema/validate_queries.py "$f" '{"first": 20}'; done
